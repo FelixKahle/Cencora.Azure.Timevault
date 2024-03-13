@@ -416,8 +416,25 @@ namespace Cencora.Azure.Timevault
         /// </summary>
         /// <param name="document">The <see cref="TimevaultDocument"/> to add.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when the <paramref name="document"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">Thrown when the <see cref="TimevaultDocument.Id"/> or <see cref="TimevaultDocument.IanaCode"/> is <c>null</c> or empty.</exception>
         private async Task AddTimevaultDocumentAsync(TimevaultDocument document)
         {
+            if (document == null)
+            {
+                throw new ArgumentNullException(nameof(document));
+            }
+
+            if (string.IsNullOrEmpty(document.Id))
+            {
+                throw new ArgumentException("The document identifier cannot be null or empty.", nameof(document.Id));
+            }
+
+            if (string.IsNullOrEmpty(document.IanaCode))
+            {
+                throw new ArgumentException("The IANA timezone code cannot be null or empty.", nameof(document.IanaCode));
+            }
+
             try
             {
                 Database database = _cosmosClient.GetDatabase(_settings.TimevaultCosmosDBDatabaseName);
