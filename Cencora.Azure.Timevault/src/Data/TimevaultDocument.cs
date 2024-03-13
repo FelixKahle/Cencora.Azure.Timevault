@@ -12,7 +12,7 @@ namespace Cencora.Azure.Timevault
         /// <summary>
         /// Gets or sets the unique identifier for the document.
         /// </summary>
-        public string Id { get; set; }
+        public string Id { get; private set; }
 
         /// <summary>
         /// Gets or sets the IANA timezone code for the document's associated location.
@@ -27,7 +27,7 @@ namespace Cencora.Azure.Timevault
         /// <summary>
         /// Gets or sets the geographical location of the document.
         /// </summary>
-        public GeoCoordinate Location { get; set; }
+        public GeoCoordinate Coordinate { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TimevaultDocument"/> class with default values.
@@ -37,7 +37,7 @@ namespace Cencora.Azure.Timevault
             Id = Guid.NewGuid().ToString();
             IanaCode = string.Empty;
             Address = new Address();
-            Location = new GeoCoordinate();
+            Coordinate = new GeoCoordinate();
         }
 
         /// <summary>
@@ -54,7 +54,7 @@ namespace Cencora.Azure.Timevault
             Id = Guid.NewGuid().ToString();
             IanaCode = ianaCode;
             Address = address;
-            Location = location;
+            Coordinate = location;
         }
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Cencora.Azure.Timevault
             Id = id;
             IanaCode = ianaCode;
             Address = address;
-            Location = location;
+            Coordinate = location;
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace Cencora.Azure.Timevault
         /// <remarks>
         /// Two <see cref="TimevaultDocument"/> objects are considered equal if their <see cref="Id"/> properties are equal 
         /// or if their <see cref="Id"/> properties are both <c>null</c> or <see cref="string.Empty"/> and 
-        /// their <see cref="IanaCode"/>, <see cref="Address"/>, and <see cref="Location"/> properties are equal.
+        /// their <see cref="IanaCode"/>, <see cref="Address"/>, and <see cref="Coordinate"/> properties are equal.
         /// </remarks>
         /// <param name="other">The <see cref="TimevaultDocument"/> object to compare with the current object.</param>
         /// <returns><c>true</c> if the current object is equal to the other object; otherwise, <c>false</c>.</returns>
@@ -93,7 +93,7 @@ namespace Cencora.Azure.Timevault
             {
                 return IanaCode.Equals(other.IanaCode)
                     && Address.Equals(other.Address)
-                    && Location.Equals(other.Location);
+                    && Coordinate.Equals(other.Coordinate);
             }
 
             return Id.Equals(other.Id);
@@ -115,7 +115,7 @@ namespace Cencora.Azure.Timevault
         /// <returns>A hash code for the current <see cref="TimevaultDocument"/> object.</returns>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Id, IanaCode, Address, Location);
+            return HashCode.Combine(Id, IanaCode, Address, Coordinate);
         }
 
         /// <summary>

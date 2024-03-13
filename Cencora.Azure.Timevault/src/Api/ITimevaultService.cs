@@ -17,19 +17,19 @@ namespace Cencora.Azure.Timevault
         Task<string> SearchTimevaultIanaTimezoneCodeAsync(Address address);
 
         /// <summary>
-        /// Searches for the IANA timezone code based on the provided location coordinates.
+        /// Searches for the IANA timezone code based on the provided coordinate coordinates.
         /// </summary>
-        /// <param name="location">The location coordinates to search for.</param>
+        /// <param name="coordinate">The coordinate coordinates to search for.</param>
         /// <returns>The IANA timezone code.</returns>
-        Task<string> SearchTimevaultIanaTimezoneCodeAsync(GeoCoordinate location);
+        Task<string> SearchTimevaultIanaTimezoneCodeAsync(GeoCoordinate coordinate);
 
         /// <summary>
-        /// Searches for the IANA timezone code based on the provided address and location coordinates.
+        /// Searches for the IANA timezone code based on the provided address and coordinate coordinates.
         /// </summary>
         /// <param name="address">The address to search for.</param>
-        /// <param name="location">The location coordinates to search for.</param>
+        /// <param name="coordinate">The coordinate coordinates to search for.</param>
         /// <returns>The IANA timezone code.</returns>
-        Task<string> SearchTimevaultIanaTimezoneCodeAsync(Address address, GeoCoordinate location);
+        Task<string> SearchTimevaultIanaTimezoneCodeAsync(Address address, GeoCoordinate coordinate);
 
         /// <summary>
         /// Searches for Timevault documents based on the provided address.
@@ -39,19 +39,19 @@ namespace Cencora.Azure.Timevault
         Task<IList<TimevaultDocument>> SearchTimevaultAsync(Address address);
 
         /// <summary>
-        /// Searches for Timevault documents based on the provided location coordinates.
+        /// Searches for Timevault documents based on the provided coordinate coordinates.
         /// </summary>
-        /// <param name="location">The location coordinates to search for.</param>
+        /// <param name="coordinate">The coordinate coordinates to search for.</param>
         /// <returns>A list of Timevault documents.</returns>
-        Task<IList<TimevaultDocument>> SearchTimevaultAsync(GeoCoordinate location);
+        Task<IList<TimevaultDocument>> SearchTimevaultAsync(GeoCoordinate coordinate);
 
         /// <summary>
-        /// Searches for Timevault documents based on the provided address and location coordinates.
+        /// Searches for Timevault documents based on the provided address and coordinate coordinates.
         /// </summary>
         /// <param name="address">The address to search for.</param>
-        /// <param name="location">The location coordinates to search for.</param>
+        /// <param name="coordinate">The coordinate coordinates to search for.</param>
         /// <returns>A list of Timevault documents.</returns>
-        Task<IList<TimevaultDocument>> SearchTimevaultAsync(Address address, GeoCoordinate location);
+        Task<IList<TimevaultDocument>> SearchTimevaultAsync(Address address, GeoCoordinate coordinate);
 
         /// <summary>
         /// Searches for Timevault documents based on the provided IANA timezone code.
@@ -68,18 +68,18 @@ namespace Cencora.Azure.Timevault
         Task<string> GetIanaTimezoneAsync(Address address);
 
         /// <summary>
-        /// Gets the IANA timezone code based on the provided location coordinates.
+        /// Gets the IANA timezone code based on the provided coordinate coordinates.
         /// </summary>
-        /// <param name="location">The location coordinates to get the IANA timezone code for.</param>
+        /// <param name="coordinate">The coordinate coordinates to get the IANA timezone code for.</param>
         /// <returns>The IANA timezone code.</returns>
-        Task<string> GetIanaTimezoneAsync(GeoCoordinate location);
+        Task<string> GetIanaTimezoneAsync(GeoCoordinate coordinate);
 
         /// <summary>
-        /// Gets the IANA timezone code based on the provided address and location coordinates.
+        /// Gets the IANA timezone code based on the provided address and coordinate coordinates.
         /// </summary>
         /// <param name="address">The address to get the IANA timezone code for.</param>
-        /// <param name="location">The location coordinates to get the IANA timezone code for.</param>
+        /// <param name="coordinate">The coordinate coordinates to get the IANA timezone code for.</param>
         /// <returns>The IANA timezone code.</returns>
-        Task<string> GetIanaTimezoneAsync(Address address, GeoCoordinate location);
+        Task<string> GetIanaTimezoneAsync(Address address, GeoCoordinate coordinate);
     }
 }

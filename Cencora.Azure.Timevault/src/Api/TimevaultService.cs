@@ -32,7 +32,7 @@ namespace Cencora.Azure.Timevault
         private readonly CosmosClient _cosmosClient;
 
         /// <summary>
-        /// The maps search client used to search for addresses and locations.
+        /// The maps search client used to search for addresses and coordinates.
         /// </summary>
         private readonly MapsSearchClient _mapsSearchClient;
 
@@ -71,47 +71,47 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Searches for the IANA timezone code based on the given location.
+        /// Searches for the IANA timezone code based on the given coordinate.
         /// </summary>
-        /// <param name="location">The location coordinates.</param>
+        /// <param name="coordinate">The coordinate coordinates.</param>
         /// <returns>The IANA timezone code.</returns>
-        public async Task<string> SearchTimevaultIanaTimezoneCodeAsync(GeoCoordinate location)
+        public async Task<string> SearchTimevaultIanaTimezoneCodeAsync(GeoCoordinate coordinate)
         {
-            IList<TimevaultDocument> documents = await SearchTimevaultAsync(location);
+            IList<TimevaultDocument> documents = await SearchTimevaultAsync(coordinate);
 
             if (!documents.Any())
             {
-                _logger.LogWarning($"No Timevault documents found for location: {location}");
+                _logger.LogWarning($"No Timevault documents found for coordinate: {coordinate}");
                 return string.Empty;
             }
 
             if (documents.Count > 1)
             {
-                _logger.LogWarning($"1 Timevault document expected for location: {location}, but {documents.Count} found. Using the first document found.");
+                _logger.LogWarning($"1 Timevault document expected for coordinate: {coordinate}, but {documents.Count} found. Using the first document found.");
             }
 
             return documents.FirstOrDefault()?.IanaCode ?? string.Empty;
         }
 
         /// <summary>
-        /// Searches the Timevault for the IANA timezone code based on the given address and location.
+        /// Searches the Timevault for the IANA timezone code based on the given address and coordinate.
         /// </summary>
         /// <param name="address">The address to search for.</param>
-        /// <param name="location">The location coordinates to search for.</param>
+        /// <param name="coordinate">The coordinate coordinates to search for.</param>
         /// <returns>The IANA timezone code found in the Timevault, or an empty string if no code is found.</returns>
-        public async Task<string> SearchTimevaultIanaTimezoneCodeAsync(Address address, GeoCoordinate location)
+        public async Task<string> SearchTimevaultIanaTimezoneCodeAsync(Address address, GeoCoordinate coordinate)
         {
-            IList<TimevaultDocument> documents = await SearchTimevaultAsync(address, location);
+            IList<TimevaultDocument> documents = await SearchTimevaultAsync(address, coordinate);
 
             if (!documents.Any())
             {
-                _logger.LogWarning($"No Timevault documents found for address: {address}");
+                _logger.LogWarning($"No Timevault documents found for address: {address} and coordinate: {coordinate}");
                 return string.Empty;
             }
 
             if (documents.Count > 1)
             {
-                _logger.LogWarning($"1 Timevault document expected for address: {address}, but {documents.Count} found. Using the first document found.");
+                _logger.LogWarning($"1 Timevault document expected for address: {address} and coordinate: {coordinate}, but {documents.Count} found. Using the first document found.");
             }
 
             return documents.FirstOrDefault()?.IanaCode ?? string.Empty;
@@ -155,11 +155,11 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Searches for Timevault documents based on the specified location.
+        /// Searches for Timevault documents based on the specified coordinate.
         /// </summary>
-        /// <param name="location">The location to search for.</param>
-        /// <returns>A list of Timevault documents matching the specified location.</returns>
-        public async Task<IList<TimevaultDocument>> SearchTimevaultAsync(GeoCoordinate location)
+        /// <param name="coordinate">The coordinate to search for.</param>
+        /// <returns>A list of Timevault documents matching the specified coordinate.</returns>
+        public async Task<IList<TimevaultDocument>> SearchTimevaultAsync(GeoCoordinate coordinate)
         {
             IFormatProvider formatProvider = CultureInfo.InvariantCulture;
             List<TimevaultDocument> result = new List<TimevaultDocument>();
@@ -169,9 +169,9 @@ namespace Cencora.Azure.Timevault
                 Database database = _cosmosClient.GetDatabase(_settings.TimevaultCosmosDBDatabaseName);
                 Container container = database.GetContainer(_settings.TimevaultCosmosDBContainerName);
 
-                string latitudeString = location.Latitude.ToString(formatProvider);
-                string longitudeString = location.Longitude.ToString(formatProvider);
-                string queryString = BuildGeoCoordinateQueryString(location, formatProvider);
+                string latitudeString = coordinate.Latitude.ToString(formatProvider);
+                string longitudeString = coordinate.Longitude.ToString(formatProvider);
+                string queryString = BuildGeoCoordinateQueryString(coordinate, formatProvider);
 
                 QueryDefinition queryDefinition = new QueryDefinition(queryString);
                 FeedIterator<TimevaultDocument> iterator = container.GetItemQueryIterator<TimevaultDocument>(queryDefinition);
@@ -190,12 +190,12 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Searches for Timevault documents based on the provided address and location.
+        /// Searches for Timevault documents based on the provided address and coordinate.
         /// </summary>
         /// <param name="address">The address to search for.</param>
-        /// <param name="location">The location to search for.</param>
+        /// <param name="coordinate">The coordinate to search for.</param>
         /// <returns>A list of Timevault documents that match the search criteria.</returns>
-        public async Task<IList<TimevaultDocument>> SearchTimevaultAsync(Address address, GeoCoordinate location)
+        public async Task<IList<TimevaultDocument>> SearchTimevaultAsync(Address address, GeoCoordinate coordinate)
         {
             IFormatProvider formatProvider = CultureInfo.InvariantCulture;
             List<TimevaultDocument> result = new List<TimevaultDocument>();
@@ -205,10 +205,10 @@ namespace Cencora.Azure.Timevault
                 Database database = _cosmosClient.GetDatabase(_settings.TimevaultCosmosDBDatabaseName);
                 Container container = database.GetContainer(_settings.TimevaultCosmosDBContainerName);
 
-                string queryString = BuildQueryString(address, location, formatProvider);
+                string queryString = BuildQueryString(address, coordinate, formatProvider);
                 if (string.IsNullOrEmpty(queryString))
                 {
-                    _logger.LogWarning($"No query string generated for address: {address} and location: {location}");
+                    _logger.LogWarning($"No query string generated for address: {address} and coordinate: {coordinate}");
                     return result;
                 }
 
@@ -283,7 +283,7 @@ namespace Cencora.Azure.Timevault
             }
 
             // Query the maps services to first find the geographic coordinates of the address.
-            GeoCoordinate? location = await MapsSearchAddress(address);
+            GeoCoordinate? coordinate = await MapsSearchAddress(address);
 
             // TODO: Query the Timezone API to get the IANA timezone code, and add the document to the Timevault database.
 
@@ -291,33 +291,33 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Retrieves the IANA timezone code for the given location asynchronously.
+        /// Retrieves the IANA timezone code for the given coordinate asynchronously.
         /// </summary>
         /// <remarks>
-        /// If a Timevault document is found for the location, the IANA timezone code is retrieved from the document.
+        /// If a Timevault document is found for the coordinate, the IANA timezone code is retrieved from the document.
         /// If no document is found, the maps services are queried to retrieve the IANA timezone code.
         /// The retrieved IANA timezone code is then added to the Timevault database for future use.
         /// </remarks>
-        /// <param name="location">The location for which to retrieve the IANA timezone code.</param>
-        /// <returns>The IANA timezone code for the given location.</returns>
-        public Task<string> GetIanaTimezoneAsync(GeoCoordinate location)
+        /// <param name="coordinate">The coordinate for which to retrieve the IANA timezone code.</param>
+        /// <returns>The IANA timezone code for the given coordinate.</returns>
+        public Task<string> GetIanaTimezoneAsync(GeoCoordinate coordinate)
         {
             throw new NotImplementedException();
         }
 
 
         /// <summary>
-        /// Retrieves the IANA timezone code for the given address and location asynchronously.
+        /// Retrieves the IANA timezone code for the given address and coordinate asynchronously.
         /// </summary>
         /// <remarks>
-        /// If a Timevault document is found for the address and location, the IANA timezone code is retrieved from the document.
+        /// If a Timevault document is found for the address and coordinate, the IANA timezone code is retrieved from the document.
         /// If no document is found, the maps services are queried to retrieve the IANA timezone code.
         /// The retrieved IANA timezone code is then added to the Timevault database for future use.
         /// </remarks>
         /// <param name="address">The address for which to retrieve the IANA timezone code.</param>
-        /// <param name="location">The location for which to retrieve the IANA timezone code.</param>
-        /// <returns>The IANA timezone code for the given address and location.</returns>
-        public Task<string> GetIanaTimezoneAsync(Address address, GeoCoordinate location)
+        /// <param name="coordinate">The coordinate for which to retrieve the IANA timezone code.</param>
+        /// <returns>The IANA timezone code for the given address and coordinate.</returns>
+        public Task<string> GetIanaTimezoneAsync(Address address, GeoCoordinate coordinate)
         {
             throw new NotImplementedException();
         }
@@ -431,16 +431,16 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Builds a query string for retrieving data based on a given GeoCoordinate location.
+        /// Builds a query string for retrieving data based on a given GeoCoordinate coordinate.
         /// </summary>
-        /// <param name="location">The GeoCoordinate location.</param>
+        /// <param name="coordinate">The GeoCoordinate coordinate.</param>
         /// <param name="formatProvider">The format provider used to convert the latitude and longitude values to strings.</param>
-        /// <returns>A query string for retrieving data based on the specified GeoCoordinate location.</returns>
-        private string BuildGeoCoordinateQueryString(GeoCoordinate location, IFormatProvider formatProvider)
+        /// <returns>A query string for retrieving data based on the specified GeoCoordinate coordinate.</returns>
+        private string BuildGeoCoordinateQueryString(GeoCoordinate coordinate, IFormatProvider formatProvider)
         {
-            string latitudeString = location.Latitude.ToString(formatProvider);
-            string longitudeString = location.Longitude.ToString(formatProvider);
-            return $"SELECT * FROM c WHERE c.location.latitude = {latitudeString} AND c.location.longitude = {longitudeString}";
+            string latitudeString = coordinate.Latitude.ToString(formatProvider);
+            string longitudeString = coordinate.Longitude.ToString(formatProvider);
+            return $"SELECT * FROM c WHERE c.coordinate.latitude = {latitudeString} AND c.coordinate.longitude = {longitudeString}";
         }
 
         /// <summary>
@@ -476,13 +476,13 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Builds a query string based on the provided address, location, and format provider.
+        /// Builds a query string based on the provided address, coordinate, and format provider.
         /// </summary>
         /// <param name="address">The address object containing street, city, state, postal code, and country.</param>
-        /// <param name="location">The geographic coordinates of the location.</param>
+        /// <param name="coordinate">The geographic coordinates of the coordinate.</param>
         /// <param name="formatProvider">The format provider used to format the latitude and longitude values.</param>
-        /// <returns>A query string that can be used to filter data based on the provided address and location.</returns>
-        private string BuildQueryString(Address address, GeoCoordinate location, IFormatProvider formatProvider)
+        /// <returns>A query string that can be used to filter data based on the provided address and coordinate.</returns>
+        private string BuildQueryString(Address address, GeoCoordinate coordinate, IFormatProvider formatProvider)
         {
             var queryParts = new List<string>(5);
             if (!string.IsNullOrEmpty(address.Street) && !string.IsNullOrWhiteSpace(address.Street))
@@ -506,8 +506,8 @@ namespace Cencora.Azure.Timevault
                 queryParts.Add($"c.address.country = '{address.Country}'");
             }
             
-            queryParts.Add($"c.location.latitude = {location.Latitude.ToString(formatProvider)}");
-            queryParts.Add($"c.location.longitude = {location.Longitude.ToString(formatProvider)}");
+            queryParts.Add($"c.coordinate.latitude = {coordinate.Latitude.ToString(formatProvider)}");
+            queryParts.Add($"c.coordinate.longitude = {coordinate.Longitude.ToString(formatProvider)}");
 
             return queryParts.Any() ? $"SELECT * FROM c WHERE {string.Join(" AND ", queryParts)}" : string.Empty;
         }

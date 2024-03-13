@@ -154,10 +154,13 @@ publish/
 # in these scripts will be unencrypted
 PublishScripts/
 
+# TODO: Reenable when we have a solution for the following issue:
+# Shipping a custom TimezoneClient with the application
 # NuGet Packages
-*.nupkg
+# *.nupkg
 # The packages folder can be ignored because of Package Restore
-**/packages/*
+# **/packages/*
+
 # except build/, which is used as an MSBuild target.
 !**/packages/build/
 # Uncomment if necessary however generally it will be regenerated when needed
