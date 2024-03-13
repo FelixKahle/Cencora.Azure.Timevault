@@ -3,6 +3,7 @@
 // Written by Felix Kahle, A123234, felix.kahle@worldcourier.de
 
 using System.Globalization;
+using System.Text.Json;
 
 namespace Cencora.Azure.Timevault.Tests
 {
@@ -144,6 +145,21 @@ namespace Cencora.Azure.Timevault.Tests
             var coordinate1 = new GeoCoordinate(1.5, 2.6);
             var coordinate2 = new GeoCoordinate(1.5, 2.7);
             Assert.NotEqual(coordinate1.GetHashCode(), coordinate2.GetHashCode());
+        }
+
+        [Fact]
+        public void Json_SerializesDeserializesCorrectly()
+        {
+            var coordinate = new GeoCoordinate(1.5, 2.5);
+
+            JsonSerializerOptions options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            };
+            var jsonString = System.Text.Json.JsonSerializer.Serialize(coordinate, options);
+            var deserializedCoordinate = System.Text.Json.JsonSerializer.Deserialize<GeoCoordinate>(jsonString, options);
+
+            Assert.Equal(coordinate, deserializedCoordinate);
         }
     }
 }

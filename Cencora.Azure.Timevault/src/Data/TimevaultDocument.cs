@@ -2,6 +2,8 @@
 //
 // Written by Felix Kahle, A123234, felix.kahle@worldcourier.de
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace Cencora.Azure.Timevault
 {
     /// <summary>
@@ -12,7 +14,7 @@ namespace Cencora.Azure.Timevault
         /// <summary>
         /// Gets or sets the unique identifier for the document.
         /// </summary>
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// Gets or sets the IANA timezone code for the document's associated location.
@@ -30,11 +32,11 @@ namespace Cencora.Azure.Timevault
         public GeoCoordinate Coordinate { get; set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="TimevaultDocument"/> class with default values.
+        /// Initializes a new instance of the <see cref="TimevaultDocument"/> class.
         /// </summary>
         public TimevaultDocument()
         {
-            Id = Guid.NewGuid().ToString();
+            Id = string.Empty;
             IanaCode = string.Empty;
             Address = new Address();
             Coordinate = new GeoCoordinate();
@@ -49,12 +51,10 @@ namespace Cencora.Azure.Timevault
         /// <remarks>
         /// The <see cref="Id"/> property is set to a new unique identifier.
         /// </remarks>
+        /// <exception cref="ArgumentException">Thrown when the <paramref name="ianaCode"/> is <c>null</c> or empty.</exception>
         public TimevaultDocument(string ianaCode, Address address, GeoCoordinate location)
+            : this(Guid.NewGuid().ToString(), ianaCode, address, location)
         {
-            Id = Guid.NewGuid().ToString();
-            IanaCode = ianaCode;
-            Address = address;
-            Coordinate = location;
         }
 
         /// <summary>
@@ -64,8 +64,12 @@ namespace Cencora.Azure.Timevault
         /// <param name="ianaCode">The IANA timezone code for the document's associated location.</param>
         /// <param name="address">The physical address associated with the document.</param>
         /// <param name="location">The geographical location of the document.</param>
+        /// <exception cref="ArgumentException">Thrown when the <paramref name="id"/> or <paramref name="ianaCode"/> is <c>null</c> or empty.</exception>
         public TimevaultDocument(string id, string ianaCode, Address address, GeoCoordinate location)
         {
+            if (string.IsNullOrEmpty(id)) throw new ArgumentException("The document identifier cannot be null or empty.", nameof(id));
+            if (string.IsNullOrEmpty(ianaCode)) throw new ArgumentException("The IANA timezone code cannot be null or empty.", nameof(ianaCode));
+
             Id = id;
             IanaCode = ianaCode;
             Address = address;
@@ -116,6 +120,15 @@ namespace Cencora.Azure.Timevault
         public override int GetHashCode()
         {
             return HashCode.Combine(Id, IanaCode, Address, Coordinate);
+        }
+
+        /// <summary>
+        /// Returns a string that represents the current object.
+        /// </summary>
+        /// <returns>A string that represents the current object.</returns>
+        public override string ToString()
+        {
+            return $"Id: {Id}, IanaCode: {IanaCode}, Address: {Address}, Coordinate: {Coordinate}";
         }
 
         /// <summary>

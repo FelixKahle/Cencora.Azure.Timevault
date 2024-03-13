@@ -2,6 +2,8 @@
 //
 // Written by Felix Kahle, A123234, felix.kahle@worldcourier.de
 
+using System.Text.Json;
+
 namespace Cencora.Azure.Timevault.Tests
 {
     public class AddressTests
@@ -188,6 +190,29 @@ namespace Cencora.Azure.Timevault.Tests
             var address1 = new Address("street", "city", "state", "postalCode", "country");
             var address2 = new Address("street1", "city", "state", "postalCode", "country");
             Assert.NotEqual(address1.GetHashCode(), address2.GetHashCode());
+        }
+
+        [Fact]
+        public void Json_SerializesDeserializesCorrectly()
+        {
+            var address = new Address
+            {
+                Street = "123 Main St",
+                City = "Anytown",
+                State = "NY",
+                PostalCode = "12345",
+                Country = "USA"
+            };
+
+            JsonSerializerOptions options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            };
+
+            var jsonString   = System.Text.Json.JsonSerializer.Serialize(address, options);
+            var deserializedAddress = System.Text.Json.JsonSerializer.Deserialize<Address>(jsonString, options);
+            
+            Assert.Equal(address, deserializedAddress);
         }
     }
 }
