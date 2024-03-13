@@ -95,6 +95,20 @@ namespace Cencora.Azure.Timevault.Tests
         }
 
         [Fact]
+        public void Equals_With_Null_ReturnsFalse()
+        {
+            var coordinate = new GeoCoordinate(1.5, 2.6);
+            Assert.False(coordinate.Equals(null));
+        }
+
+        [Fact]
+        public void Equals_With_Object_ReturnsFalse()
+        {
+            var coordinate = new GeoCoordinate(1.5, 2.6);
+            Assert.False(coordinate.Equals(new object()));
+        }
+
+        [Fact]
         public void ToString_With_NoArguments_ReturnsFormattedString()
         {
             const double latitude = 1.5;
