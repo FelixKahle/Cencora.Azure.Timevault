@@ -4,108 +4,104 @@
 
 using System.Globalization;
 
-namespace Cencora.Azure.Timevault.Tests
+namespace Cencora.Azure.Timevault
 {
-    /// <summary>
-    /// Contains unit tests for the <see cref="GeoCoordinate"/> class.
-    /// </summary>
-    [TestFixture]
-    internal class GeoCoordinateTests
+    public class GeoCoordinateTests
     {
-        [Test]
+        [Fact]
         public void Constructor_With_NoArguments_InitializesToZero()
         {
             var coordinate = new GeoCoordinate();
-            Assert.That(coordinate.Latitude, Is.EqualTo(0));
-            Assert.That(coordinate.Longitude, Is.EqualTo(0));
+            Assert.Equal(0, coordinate.Latitude);
+            Assert.Equal(0, coordinate.Longitude);
         }
 
-        [Test]
+        [Fact]
         public void Constructor_With_LatitudeAndLongitude_InitializesToSpecifiedValues()
         {
-            var coordinate = new GeoCoordinate(1.5, 2.6);
-            Assert.That(coordinate.Latitude, Is.EqualTo(1.5));
-            Assert.That(coordinate.Longitude, Is.EqualTo(2.6));
+            var coordinate = new GeoCoordinate(1.5, 2.5);
+            Assert.Equal(1.5, coordinate.Latitude);
+            Assert.Equal(2.5, coordinate.Longitude);
         }
 
-        [Test]
+        [Fact]
         public void Constructor_With_LatitudeAndLongitudeStrings_InitializesToSpecifiedValues()
         {
-            var coordinate = new GeoCoordinate("1.5", "2.6", CultureInfo.InvariantCulture);
-            Assert.That(coordinate.Latitude, Is.EqualTo(1.5));
-            Assert.That(coordinate.Longitude, Is.EqualTo(2.6));
+            var coordinate = new GeoCoordinate("1.5", "2.5");
+            Assert.Equal(1.5, coordinate.Latitude);
+            Assert.Equal(2.5, coordinate.Longitude);
         }
 
-        [Test]
+        [Fact]
         public void Constructor_With_InvalidLatitudeString_ThrowsArgumentException()
         {
-            Assert.That(() => new GeoCoordinate("invalid", "2.6", CultureInfo.InvariantCulture), Throws.ArgumentException);
+            Assert.Throws<ArgumentException>(() => new GeoCoordinate("invalid", "2.6", CultureInfo.InvariantCulture));
         }
 
-        [Test]
+        [Fact]
         public void Constructor_With_InvalidLongitudeString_ThrowsArgumentException()
         {
-            Assert.That(() => new GeoCoordinate("1.5", "invalid", CultureInfo.InvariantCulture), Throws.ArgumentException);
+            Assert.Throws<ArgumentException>(() => new GeoCoordinate("1.6", "invalid", CultureInfo.InvariantCulture));
         }
 
-        [Test]
+        [Fact]
         public void TryParse_With_ValidLatitudeAndLongitudeStrings_ParsesSuccessfully()
         {
             var result = GeoCoordinate.TryParse("1.5", "2.6", CultureInfo.InvariantCulture, out var coordinate);
-            Assert.That(result, Is.True);
-            Assert.That(coordinate.Latitude, Is.EqualTo(1.5));
-            Assert.That(coordinate.Longitude, Is.EqualTo(2.6));
+            Assert.True(result);
+            Assert.Equal(1.5, coordinate.Latitude);
+            Assert.Equal(2.6, coordinate.Longitude);
         }
 
-        [Test]
+        [Fact]
         public void TryParse_With_InvalidLatitudeString_FailsToParse()
         {
             var result = GeoCoordinate.TryParse("invalid", "2.6", CultureInfo.InvariantCulture, out var coordinate);
-            Assert.That(result, Is.False);
-            Assert.That(coordinate.Latitude, Is.EqualTo(0));
-            Assert.That(coordinate.Longitude, Is.EqualTo(0));
+            Assert.False(result);
+            Assert.Equal(0, coordinate.Latitude);
+            Assert.Equal(0, coordinate.Longitude);
         }
 
-        [Test]
+        [Fact]
         public void TryParse_With_InvalidLongitudeString_FailsToParse()
         {
             var result = GeoCoordinate.TryParse("1.5", "invalid", CultureInfo.InvariantCulture, out var coordinate);
-            Assert.That(result, Is.False);
-            Assert.That(coordinate.Latitude, Is.EqualTo(0));
-            Assert.That(coordinate.Longitude, Is.EqualTo(0));
+            Assert.False(result);
+            Assert.Equal(0, coordinate.Latitude);
+            Assert.Equal(0, coordinate.Longitude);
         }
 
-        [Test]
+        [Fact]
         public void Equals_With_EqualCoordinates_ReturnsTrue()
         {
             var coordinate1 = new GeoCoordinate(1.5, 2.6);
             var coordinate2 = new GeoCoordinate(1.5, 2.6);
-            Assert.That(coordinate1.Equals(coordinate2), Is.True);
-            Assert.That(coordinate1 == coordinate2, Is.True);
-            Assert.That(coordinate1 != coordinate2, Is.False);
+            Assert.True(coordinate1.Equals(coordinate2));
+            Assert.True(coordinate1 == coordinate2);
+            Assert.False(coordinate1 != coordinate2);
         }
 
-        [Test]
+        [Fact]
         public void Equals_With_UnequalCoordinates_ReturnsFalse()
         {
             var coordinate1 = new GeoCoordinate(1.5, 2.6);
             var coordinate2 = new GeoCoordinate(1.5, 2.7);
-            Assert.That(coordinate1.Equals(coordinate2), Is.False);
-            Assert.That(coordinate1 == coordinate2, Is.False);
-            Assert.That(coordinate1 != coordinate2, Is.True);
+            Assert.False(coordinate1.Equals(coordinate2));
+            Assert.False(coordinate1 == coordinate2);
+            Assert.True(coordinate1 != coordinate2);
         }
 
-        [Test]
+        [Fact]
         public void ToString_With_NoArguments_ReturnsFormattedString()
         {
             const double latitude = 1.5;
             const double longitude = 2.6;
 
             var coordinate = new GeoCoordinate(latitude, longitude);
-            Assert.That(coordinate.ToString(), Is.EqualTo($"Latitude: {latitude}, Longitude: {longitude}"));
+            Assert.Equal($"Latitude: {latitude}, Longitude: {longitude}", coordinate.ToString());
         }
 
-        [Test]
+        [Fact]
         public void ToString_With_FormatProvider_ReturnsFormattedString()
         {
             IFormatProvider formatProvider = CultureInfo.InvariantCulture;
@@ -113,24 +109,24 @@ namespace Cencora.Azure.Timevault.Tests
             const double longitude = 2.6;
 
             var coordinate = new GeoCoordinate(latitude, longitude);
-            Assert.That(coordinate.ToString(formatProvider), 
-                Is.EqualTo($"Latitude: {latitude.ToString(formatProvider)}, Longitude: {longitude.ToString(formatProvider)}"));
+            Assert.Equal($"Latitude: {latitude.ToString(formatProvider)}, Longitude: {longitude.ToString(formatProvider)}",
+                coordinate.ToString(formatProvider));
         }
 
-        [Test]
+        [Fact]
         public void GetHashCode_With_EqualCoordinates_ReturnsEqualHashCodes()
         {
             var coordinate1 = new GeoCoordinate(1.5, 2.6);
             var coordinate2 = new GeoCoordinate(1.5, 2.6);
-            Assert.That(coordinate1.GetHashCode(), Is.EqualTo(coordinate2.GetHashCode()));
+            Assert.Equal(coordinate1.GetHashCode(), coordinate2.GetHashCode());
         }
 
-        [Test]
+        [Fact]
         public void GetHashCode_With_UnequalCoordinates_ReturnsUnequalHashCodes()
         {
             var coordinate1 = new GeoCoordinate(1.5, 2.6);
             var coordinate2 = new GeoCoordinate(1.5, 2.7);
-            Assert.That(coordinate1.GetHashCode(), Is.Not.EqualTo(coordinate2.GetHashCode()));
+            Assert.NotEqual(coordinate1.GetHashCode(), coordinate2.GetHashCode());
         }
     }
 }
