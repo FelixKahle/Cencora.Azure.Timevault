@@ -2,7 +2,7 @@
 //
 // Written by Felix Kahle, A123234, felix.kahle@worldcourier.de
 
-// This file will make creating the necessary resources for the TimeVault project easier. It will create the following resources:
+// This file will make creating the necessary resources for the Timevault project easier. It will create the following resources:
 // - Azure CosmosDB account
 // - Azure Function App
 // - Azure Storage Account

@@ -102,6 +102,12 @@ namespace Cencora.Azure.Timevault
             return $"Latitude: {Latitude}, Longitude: {Longitude}";
         }
 
+
+        public string ToString(IFormatProvider formatProvider)
+        {
+            return $"Latitude: {Latitude.ToString(formatProvider)}, Longitude: {Longitude.ToString(formatProvider)}";
+        }
+
         /// <summary>
         /// Returns the hash code for the current <see cref="GeoCoordinate"/> object.
         /// </summary>
