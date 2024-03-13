@@ -63,6 +63,13 @@ namespace Cencora.Azure.Timevault
         /// <param name="country">The country of the address.</param>
         public Address(string street, string city, string state, string postalCode, string country)
         {
+            if (street == null) throw new ArgumentNullException(nameof(street));
+            if (city == null) throw new ArgumentNullException(nameof(city));
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (postalCode == null) throw new ArgumentNullException(nameof(postalCode));
+            if (country == null) throw new ArgumentNullException(nameof(country));
+
+            
             Street = street;
             City = city;
             State = state;

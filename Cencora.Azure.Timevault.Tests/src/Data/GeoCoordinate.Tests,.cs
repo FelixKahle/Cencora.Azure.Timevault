@@ -4,8 +4,11 @@
 
 using System.Globalization;
 
-namespace Cencora.Azure.Timevault
+namespace Cencora.Azure.Timevault.Tests
 {
+    /// <summary>
+    /// Contains unit tests for the <see cref="GeoCoordinate"/> class.
+    /// </summary>
     public class GeoCoordinateTests
     {
         [Fact]
