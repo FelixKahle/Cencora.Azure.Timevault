@@ -79,38 +79,30 @@ namespace Cencora.Azure.Timevault
             return Latitude == other.Latitude && Longitude == other.Longitude;
         }
 
-        /// <summary>
-        /// Determines whether the current <see cref="GeoCoordinate"/> object is equal to another object.
-        /// </summary>
-        /// <param name="obj">The object to compare with the current object.</param>
-        /// <returns><c>true</c> if the current object is equal to the other object; otherwise, <c>false</c>.</returns>
+        /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
             return obj is GeoCoordinate other && Equals(other);
         }
 
-        /// <summary>
-        /// Returns a string representation of the GeoCoordinate object.
-        /// </summary>
-        /// <remarks>
-        /// The string contains the latitude and longitude values, labeled with their respective names.
-        /// </remarks>
-        /// <returns>A string containing the latitude and longitude values.</returns>
+        /// <inheritdoc/>
         public override string ToString()
         {
             return $"Latitude: {Latitude}, Longitude: {Longitude}";
         }
 
 
+        /// <summary>
+        /// Returns a string representation of the current <see cref="GeoCoordinate"/> object using the specified format provider.
+        /// </summary>
+        /// <param name="formatProvider">An object that provides culture-specific formatting information.</param>
+        /// <returns>A string representation of the current <see cref="GeoCoordinate"/> object.</returns>
         public string ToString(IFormatProvider formatProvider)
         {
             return $"Latitude: {Latitude.ToString(formatProvider)}, Longitude: {Longitude.ToString(formatProvider)}";
         }
 
-        /// <summary>
-        /// Returns the hash code for the current <see cref="GeoCoordinate"/> object.
-        /// </summary>
-        /// <returns>A hash code for the current object.</returns>
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             return HashCode.Combine(Latitude, Longitude);

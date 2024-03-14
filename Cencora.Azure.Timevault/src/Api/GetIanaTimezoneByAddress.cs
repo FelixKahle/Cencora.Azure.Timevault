@@ -42,7 +42,7 @@ namespace Cencora.Azure.Timevault
         /// <returns>An <see cref="IActionResult"/> representing the asynchronous operation.</returns>
         /// <remarks>
         /// This function is an Azure Function triggered by HTTP requests. It expects the following query parameters:
-        /// - address: The street address.
+        /// - street: The street address.
         /// - city: The city name.
         /// - state: The state name.
         /// - postalCode: The postal code.
@@ -56,15 +56,21 @@ namespace Cencora.Azure.Timevault
         [Function("getIanaTimezoneByAddress")]
         public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req)
         {
-            // Retrieve the address parameters from the query string.
-            string addressString = req.Query["address"].ToString();
+            // TODO: Consider setting the street address component to an empty string. 
+            // The determination of a timezone is primarily dependent on broader geographical 
+            // indicators such as the city, state, postal code, and country, rather than the specific street address. 
+            // By omitting the street address from our queries and storage, we can reduce the precision of geo-coordinate 
+            // lookups without impacting the accuracy of timezone identification. 
+            // This adjustment not only streamlines the process but also contributes to significant storage 
+            // savings, as it eliminates the need to store extensive street-level data for locations within the same timezone.
+            string streetString = req.Query["street"].ToString();
             string cityString = req.Query["city"].ToString();
             string stateString = req.Query["state"].ToString();
             string postalCodeString = req.Query["postalCode"].ToString();
             string countryString = req.Query["country"].ToString();
 
             // Ensure that at least one of the address parameters is provided.
-            if (string.IsNullOrEmpty(addressString)
+            if (string.IsNullOrEmpty(streetString)
                     && string.IsNullOrEmpty(cityString)
                     && string.IsNullOrEmpty(stateString)
                     && string.IsNullOrEmpty(postalCodeString)
@@ -76,7 +82,7 @@ namespace Cencora.Azure.Timevault
             // Create an address object from the provided parameters.
             Address address = new Address
             {
-                Street = addressString,
+                Street = streetString,
                 City = cityString,
                 State = stateString,
                 PostalCode = postalCodeString,

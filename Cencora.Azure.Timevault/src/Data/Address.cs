@@ -91,32 +91,19 @@ namespace Cencora.Azure.Timevault
                 && Country.Equals(other.Country);
         }
 
-        /// <summary>
-        /// Determines whether the current <see cref="Address"/> object is equal to another object.
-        /// </summary>
-        /// <param name="obj">The object to compare with the current object.</param>
-        /// <returns><c>true</c> if the current object is equal to the other object; otherwise, <c>false</c>.</returns>
+        /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
             return obj is Address other && Equals(other);
         }
 
-        /// <summary>
-        /// Returns the hash code for the current <see cref="Address"/> object.
-        /// </summary>
-        /// <returns>A hash code for the current object.</returns>
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             return HashCode.Combine(Street, City, State, PostalCode, Country);
         }
 
-        /// <summary>
-        /// Returns a string representation of the Address object.
-        /// </summary>
-        /// <remarks>
-        /// The string contains the street, city, state, postal code, and country values, labeled with their respective names.
-        /// </remarks>
-        /// <returns>A string containing the street, city, state, postal code, and country of the address.</returns>
+        /// <inheritdoc/>
         public override string ToString()
         {
             return $"Street: {Street}, City: {City}, State: {State}, PostalCode: {PostalCode}, Country: {Country}";
