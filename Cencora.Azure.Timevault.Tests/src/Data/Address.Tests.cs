@@ -6,6 +6,9 @@ using System.Text.Json;
 
 namespace Cencora.Azure.Timevault.Tests
 {
+    /// <summary>
+    /// Contains unit tests for the <see cref="Address"/> class.
+    /// </summary>
     public class AddressTests
     {
         [Fact]
