@@ -48,16 +48,15 @@ namespace Cencora.Azure.Timevault
         public GeoCoordinate(string latitude, string longitude, IFormatProvider formatProvider)
         {
             formatProvider ??= System.Globalization.CultureInfo.InvariantCulture;
-            if (!double.TryParse(latitude, formatProvider, out var lat))
+            try
             {
-                throw new ArgumentException($"Invalid latitude: {latitude}");
+                Latitude = double.Parse(latitude, formatProvider);
+                Longitude = double.Parse(longitude, formatProvider);
             }
-            if (!double.TryParse(longitude, formatProvider, out var lon))
+            catch
             {
-                throw new ArgumentException($"Invalid longitude: {longitude}");
+                throw;
             }
-            Latitude = lat;
-            Longitude = lon;
         }
 
         /// <summary>

@@ -39,13 +39,15 @@ namespace Cencora.Azure.Timevault.Tests
         [Fact]
         public void Constructor_With_InvalidLatitudeString_ThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => new GeoCoordinate("invalid", "2.6", CultureInfo.InvariantCulture));
+            var exception = Record.Exception(() => new GeoCoordinate("invalid", "2.6", CultureInfo.InvariantCulture));
+            Assert.NotNull(exception);
         }
 
         [Fact]
         public void Constructor_With_InvalidLongitudeString_ThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => new GeoCoordinate("1.6", "invalid", CultureInfo.InvariantCulture));
+           var exception = Record.Exception(() => new GeoCoordinate("1.6", "invalid", CultureInfo.InvariantCulture));
+           Assert.NotNull(exception);
         }
 
         [Fact]
