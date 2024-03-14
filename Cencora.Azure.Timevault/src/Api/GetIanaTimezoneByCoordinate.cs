@@ -77,6 +77,10 @@ namespace Cencora.Azure.Timevault
             try
             {
                 var timezone = await _timevaultService.GetIanaTimezoneAsync(coordinate);
+                if (string.IsNullOrEmpty(timezone))
+                {
+                    return new NotFoundObjectResult($"No timezone found for the provided coordinate: {coordinate}");
+                }
                 return new OkObjectResult(timezone);
             }
             catch (Exception ex)
