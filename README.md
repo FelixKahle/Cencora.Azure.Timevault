@@ -21,6 +21,10 @@ Stores and indexes timezone information linked to addresses and geographic coord
 
 To fetch timezone information for a given address or set of coordinates, make a request to the Timevault service's relevant endpoint. The service will attempt to return timezone data from Cosmos DB if available; otherwise, it will query Azure Maps for the required information and store it in Cosmos DB for future use.
 
+## Thoughts
+
+Adopting a more streamlined approach by focusing on city, postal code, and country information could substantially enhance efficiency and reduce reliance on the Azure Maps API. This method significantly limits the necessity for highly detailed address searches, leading to a reduction in API call frequency. Additionally, it could also lower storage costs by focusing on storing more generalized location data. Streamlining the data retrieval to these broader categories helps in striking a cost-effective balance between achieving operational accuracy and reducing expenditures. Considering these advantages, it might be beneficial to consider eliminating the option for querying specific addresses altogether. This adjustment would further optimize the service's performance and cost-efficiency, aligning with the goal of minimizing operational costs while maintaining effective time zone management capabilities.
+
 ## Implementation Note
 
 The `azure-sdk-for-net` currently does not offer a client implementation for the Azure Maps Timezone service. To bridge this gap, we've developed our custom implementation, which is included in this repository and distributed as a NuGet package alongside the Timevault service code. This solution serves as an interim workaround, enabling us to utilize Azure Maps for timezone information retrieval effectively.
