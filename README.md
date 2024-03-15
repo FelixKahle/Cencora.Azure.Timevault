@@ -1,29 +1,25 @@
 # Timevault Service for Cencora
 
-This repository contains the source code for the Timevault service, developed for Cencora. Timevault is designed to manage and store timezone information related to specific addresses or geographical coordinates. This enables efficient time translation between timezones for applications requiring accurate scheduling and time management across global locations.
+This repository contains the source code for the Timevault service, developed for Cencora. Timevault is designed to manage and store timezone information related to specific locations or geographical coordinates. This enables efficient time translation between timezones for applications requiring accurate scheduling and time management across global locations.
 
 ## Overview
 
-The Timevault service leverages Azure Maps services to retrieve geographical information based on given addresses. It then uses this information to determine the appropriate IANA timezone. The resolved timezone data is stored in a Cosmos DB database for future reference. This approach significantly reduces the number of calls made to Azure Maps services, optimizing operational costs by relying more on the cost-effective Cosmos DB operations for recurring timezone queries.
+The Timevault service leverages Azure Maps services to retrieve geographical information based on given locations. It then uses this information to determine the appropriate IANA timezone. The resolved timezone data is stored in a Cosmos DB database for future reference. This approach significantly reduces the number of calls made to Azure Maps services, optimizing operational costs by relying more on the cost-effective Cosmos DB operations for recurring timezone queries.
 
 ## Services
 
 ### Azure Maps Services
 
-- **Geocoding**: Converts addresses into geographic coordinates (latitude and longitude).
+- **Geocoding**: Converts locations into geographic coordinates (latitude and longitude).
 - **Timezone Lookup**: Determines the timezone information based on geographic coordinates.
 
 ### Cosmos DB
 
-Stores and indexes timezone information linked to addresses and geographic coordinates, enabling quick retrieval of timezone data for previously queried locations.
+Stores and indexes timezone information linked to locations and geographic coordinates, enabling quick retrieval of timezone data for previously queried locations.
 
 ## Usage
 
-To fetch timezone information for a given address or set of coordinates, make a request to the Timevault service's relevant endpoint. The service will attempt to return timezone data from Cosmos DB if available; otherwise, it will query Azure Maps for the required information and store it in Cosmos DB for future use.
-
-## Thoughts
-
-Adopting a more streamlined approach by focusing on city, postal code, and country information could substantially enhance efficiency and reduce reliance on the Azure Maps API. This method significantly limits the necessity for highly detailed address searches, leading to a reduction in API call frequency. Additionally, it could also lower storage costs by focusing on storing more generalized location data. Streamlining the data retrieval to these broader categories helps in striking a cost-effective balance between achieving operational accuracy and reducing expenditures. Considering these advantages, it might be beneficial to consider eliminating the option for querying specific addresses altogether. This adjustment would further optimize the service's performance and cost-efficiency, aligning with the goal of minimizing operational costs while maintaining effective time zone management capabilities.
+To fetch timezone information for a given locations or set of coordinates, make a request to the Timevault service's relevant endpoint. The service will attempt to return timezone data from Cosmos DB if available; otherwise, it will query Azure Maps for the required information and store it in Cosmos DB for future use.
 
 ## Implementation Note
 

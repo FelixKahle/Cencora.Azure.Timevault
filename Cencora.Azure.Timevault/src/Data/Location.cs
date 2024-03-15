@@ -93,6 +93,16 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
+        /// Returns a string that represents the location in a format suitable for a maps query string.
+        /// </summary>
+        /// <returns>A string that represents the location in a format suitable for a maps query string.</returns>
+        public string MapsQueryString()
+        {
+            var parts = new[] { City, State, PostalCode, Country };
+            return string.Join(", ", parts.Where(p => !string.IsNullOrEmpty(p)));
+        }
+
+        /// <summary>
         /// Determines whether two <see cref="Location"/> objects are equal.
         /// </summary>
         /// <param name="left">The first <see cref="Location"/> object to compare.</param>

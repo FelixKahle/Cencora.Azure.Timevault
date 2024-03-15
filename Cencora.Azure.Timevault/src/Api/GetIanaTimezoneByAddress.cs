@@ -10,14 +10,14 @@ using Microsoft.Extensions.Logging;
 namespace Cencora.Azure.Timevault
 {
     /// <summary>
-    /// Represents a class that retrieves the timezone based on the provided address information.
+    /// Represents a class that retrieves the timezone based on the provided location information.
     /// </summary>
-    public class GetIanaTimezoneByAddress
+    public class GetIanaTimezoneBylocation
     {
         /// <summary>
         /// The logger instance.
         /// </summary>
-        private readonly ILogger<GetIanaTimezoneByAddress> _logger;
+        private readonly ILogger<GetIanaTimezoneBylocation> _logger;
 
         /// <summary>
         /// The timevault service instance.
@@ -25,24 +25,24 @@ namespace Cencora.Azure.Timevault
         private readonly ITimevaultService _timevaultService;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="GetIanaTimezoneByAddress"/> class.
+        /// Initializes a new instance of the <see cref="GetIanaTimezoneBylocation"/> class.
         /// </summary>
         /// <param name="logger">The logger instance.</param>
         /// <param name="timevaultService">The timevault service instance.</param>
-        public GetIanaTimezoneByAddress(ILogger<GetIanaTimezoneByAddress> logger, ITimevaultService timevaultService)
+        public GetIanaTimezoneBylocation(ILogger<GetIanaTimezoneBylocation> logger, ITimevaultService timevaultService)
         {
             _logger = logger;
             _timevaultService = timevaultService;
         }
 
         /// <summary>
-        /// Retrieves the IANA timezone information based on the provided address parameters.
+        /// Retrieves the IANA timezone information based on the provided location parameters.
         /// </summary>
         /// <param name="req">The HTTP request object.</param>
         /// <returns>An <see cref="IActionResult"/> representing the asynchronous operation.</returns>
         /// <remarks>
         /// This function is an Azure Function triggered by HTTP requests. It expects the following query parameters:
-        /// - street: The street address.
+        /// - street: The street location.
         /// - city: The city name.
         /// - state: The state name.
         /// - postalCode: The postal code.
@@ -50,58 +50,41 @@ namespace Cencora.Azure.Timevault
         /// 
         /// At least one of the above parameters must be provided. If none of the parameters are provided, a bad request response is returned.
         /// 
-        /// The function uses the provided address parameters to retrieve the corresponding IANA timezone using the <see cref="_timevaultService"/> service.
+        /// The function uses the provided location parameters to retrieve the corresponding IANA timezone using the <see cref="_timevaultService"/> service.
         /// If successful, the function returns the timezone information as an OkObjectResult. If an error occurs, a 500 Internal Server Error response is returned.
         /// </remarks>
-        [Function("getIanaTimezoneByAddress")]
+        [Function("getIanaTimezoneBylocation")]
         public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req)
         {
-            // TODO: Consider setting the street address component to an empty string. 
-            // The determination of a timezone is primarily dependent on broader geographical 
-            // indicators such as the city, state, postal code, and country, rather than the specific street address. 
-            // By omitting the street address from our queries and storage, we can reduce the precision of geo-coordinate 
-            // lookups without impacting the accuracy of timezone identification. 
-            // This adjustment not only streamlines the process but also contributes to significant storage 
-            // savings, as it eliminates the need to store extensive street-level data for locations within the same timezone.
-            string streetString = req.Query["street"].ToString();
             string cityString = req.Query["city"].ToString();
             string stateString = req.Query["state"].ToString();
             string postalCodeString = req.Query["postalCode"].ToString();
             string countryString = req.Query["country"].ToString();
 
-            // Ensure that at least one of the address parameters is provided.
-            if (string.IsNullOrEmpty(streetString)
-                    && string.IsNullOrEmpty(cityString)
+            // Ensure that at least one of the location parameters is provided.
+            if (string.IsNullOrEmpty(cityString)
                     && string.IsNullOrEmpty(stateString)
                     && string.IsNullOrEmpty(postalCodeString)
                     && string.IsNullOrEmpty(countryString))
             {
-                return new BadRequestObjectResult("Please provide at least one of the following parameters: address, city, state, postalCode, country");
+                return new BadRequestObjectResult("Please provide at least one of the following parameters: location, city, state, postalCode, country");
             }
 
-            // Create an address object from the provided parameters.
-            Address address = new Address
-            {
-                Street = streetString,
-                City = cityString,
-                State = stateString,
-                PostalCode = postalCodeString,
-                Country = countryString
-            };
+            Location location = new Location(cityString, stateString, postalCodeString, countryString);
 
-            // Try to retrieve the timezone for the provided address.
+            // Try to retrieve the timezone for the provided location.
             try
             {
-                var timezone = await _timevaultService.GetIanaTimezoneAsync(address);
+                var timezone = await _timevaultService.GetIanaTimezoneAsync(location);
                 if (string.IsNullOrEmpty(timezone))
                 {
-                    return new NotFoundObjectResult($"No timezone found for the provided address: {address}");
+                    return new NotFoundObjectResult($"No timezone found for the provided location: {location}");
                 }
                 return new OkObjectResult(timezone);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"An error occurred while trying to get the timezone for the address {address}: {ex.Message}");
+                _logger.LogError($"An error occurred while trying to get the timezone for the location {location}: {ex.Message}");
                 return new StatusCodeResult(StatusCodes.Status500InternalServerError);
             }
         }

@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Cencora.Azure.Timevault
 {
     /// <summary>
-    /// Represents a document in a time vault with identification, timezone information, physical address, and geographical location.
+    /// Represents a document in a time vault with identification, timezone information, physical Location, and geographical location.
     /// </summary>
     public class TimevaultDocument : IEquatable<TimevaultDocument>
     {
@@ -22,9 +22,9 @@ namespace Cencora.Azure.Timevault
         public string IanaCode { get; set; }
 
         /// <summary>
-        /// Gets or sets the physical address associated with the document.
+        /// Gets or sets the physical Location associated with the document.
         /// </summary>
-        public Address Address { get; set; }
+        public Location Location { get; set; }
 
         /// <summary>
         /// Gets or sets the geographical location of the document.
@@ -38,7 +38,7 @@ namespace Cencora.Azure.Timevault
         {
             Id = string.Empty;
             IanaCode = string.Empty;
-            Address = new Address();
+            Location = new Location();
             Coordinate = new GeoCoordinate();
         }
 
@@ -46,14 +46,14 @@ namespace Cencora.Azure.Timevault
         /// Initializes a new instance of the <see cref="TimevaultDocument"/> class with the specified values.
         /// </summary>
         /// <param name="ianaCode">The IANA timezone code for the document's associated location.</param>
-        /// <param name="address">The physical address associated with the document.</param>
+        /// <param name="Location">The physical Location associated with the document.</param>
         /// <param name="location">The geographical location of the document.</param>
         /// <remarks>
         /// The <see cref="Id"/> property is set to a new unique identifier.
         /// </remarks>
         /// <exception cref="ArgumentException">Thrown when the <paramref name="ianaCode"/> is <c>null</c> or empty.</exception>
-        public TimevaultDocument(string ianaCode, Address address, GeoCoordinate location)
-            : this(Guid.NewGuid().ToString(), ianaCode, address, location)
+        public TimevaultDocument(string ianaCode, Location Location, GeoCoordinate location)
+            : this(Guid.NewGuid().ToString(), ianaCode, Location, location)
         {
         }
 
@@ -62,18 +62,18 @@ namespace Cencora.Azure.Timevault
         /// </summary>
         /// <param name="id">The unique identifier for the document.</param>
         /// <param name="ianaCode">The IANA timezone code for the document's associated location.</param>
-        /// <param name="address">The physical address associated with the document.</param>
+        /// <param name="">The physical Location associated with the document.</param>
         /// <param name="location">The geographical location of the document.</param>
         /// <exception cref="ArgumentException">Thrown when the <paramref name="id"/> or <paramref name="ianaCode"/> is <c>null</c> or empty.</exception>
-        public TimevaultDocument(string id, string ianaCode, Address address, GeoCoordinate location)
+        public TimevaultDocument(string id, string ianaCode, Location location, GeoCoordinate coordinate)
         {
             if (string.IsNullOrEmpty(id)) throw new ArgumentException("The document identifier cannot be null or empty.", nameof(id));
             if (string.IsNullOrEmpty(ianaCode)) throw new ArgumentException("The IANA timezone code cannot be null or empty.", nameof(ianaCode));
 
             Id = id;
             IanaCode = ianaCode;
-            Address = address;
-            Coordinate = location;
+            Location = location;
+            Coordinate = coordinate;
         }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace Cencora.Azure.Timevault
         /// <remarks>
         /// Two <see cref="TimevaultDocument"/> objects are considered equal if their <see cref="Id"/> properties are equal 
         /// or if their <see cref="Id"/> properties are both <c>null</c> or <see cref="string.Empty"/> and 
-        /// their <see cref="IanaCode"/>, <see cref="Address"/>, and <see cref="Coordinate"/> properties are equal.
+        /// their <see cref="IanaCode"/>, <see cref="Location"/>, and <see cref="Coordinate"/> properties are equal.
         /// </remarks>
         /// <param name="other">The <see cref="TimevaultDocument"/> object to compare with the current object.</param>
         /// <returns><c>true</c> if the current object is equal to the other object; otherwise, <c>false</c>.</returns>
@@ -96,7 +96,7 @@ namespace Cencora.Azure.Timevault
             if (string.IsNullOrEmpty(Id) || string.IsNullOrEmpty(other.Id))
             {
                 return IanaCode.Equals(other.IanaCode)
-                    && Address.Equals(other.Address)
+                    && Location.Equals(other.Location)
                     && Coordinate.Equals(other.Coordinate);
             }
 
@@ -119,7 +119,7 @@ namespace Cencora.Azure.Timevault
         /// <returns>A hash code for the current <see cref="TimevaultDocument"/> object.</returns>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Id, IanaCode, Address, Coordinate);
+            return HashCode.Combine(Id, IanaCode, Location, Coordinate);
         }
 
         /// <summary>
@@ -128,7 +128,7 @@ namespace Cencora.Azure.Timevault
         /// <returns>A string that represents the current object.</returns>
         public override string ToString()
         {
-            return $"Id: {Id}, IanaCode: {IanaCode}, Address: {Address}, Coordinate: {Coordinate}";
+            return $"Id: {Id}, IanaCode: {IanaCode}, Location: {Location}, Coordinate: {Coordinate}";
         }
 
         /// <summary>
