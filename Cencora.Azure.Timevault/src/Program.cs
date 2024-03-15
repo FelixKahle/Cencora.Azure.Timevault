@@ -5,6 +5,7 @@
 using System.Text.Json;
 using Azure.Identity;
 using Azure.Maps.Search;
+using Azure.Maps.Timezone;
 using Cencora.Azure.Timevault;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
@@ -59,8 +60,9 @@ var host = new HostBuilder()
         };
         services.AddSingleton<CosmosClient>(new CosmosClient(accountEndpoint: cosmosDBEndpoint, tokenCredential: credential, options));
 
-        // Add the MapsSearchClient
+        // Maps services
         services.AddSingleton<MapsSearchClient>(new MapsSearchClient(credential, mapsClientId));
+        services.AddSingleton<MapsTimezoneClient>(new MapsTimezoneClient(credential, mapsClientId));
 
         // Add the Timevault service
         services.AddSingleton<ITimevaultService, TimevaultService>();

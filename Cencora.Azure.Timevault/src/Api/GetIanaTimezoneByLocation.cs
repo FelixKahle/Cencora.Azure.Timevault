@@ -69,6 +69,8 @@ namespace Cencora.Azure.Timevault
                 return new BadRequestObjectResult("Please provide at least one of the following parameters: location, city, state, postalCode, country");
             }
 
+            // The strings can not be null, so we can create a new location object.
+            // <see query.ToString() returns an empty string if the query parameter is not provided.
             Location location = new Location(cityString, stateString, postalCodeString, countryString);
 
             // Try to retrieve the timezone for the provided location.
