@@ -42,7 +42,6 @@ namespace Cencora.Azure.Timevault
         /// <returns>An <see cref="IActionResult"/> representing the asynchronous operation.</returns>
         /// <remarks>
         /// This function is an Azure Function triggered by HTTP requests. It expects the following query parameters:
-        /// - street: The street location.
         /// - city: The city name.
         /// - state: The state name.
         /// - postalCode: The postal code.
