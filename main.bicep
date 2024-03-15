@@ -108,17 +108,10 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
         uniqueKeys: [
           {
             paths: [
-              '/address/street'
               '/address/city'
               '/address/state'
               '/address/postalCode'
               '/address/country'
-            ]
-          }
-          {
-            paths: [
-              'coordinate/latitude'
-              'coordinate/longitude'
             ]
           }
         ]

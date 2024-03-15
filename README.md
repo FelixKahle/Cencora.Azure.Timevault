@@ -19,7 +19,7 @@ Stores and indexes timezone information linked to locations and geographic coord
 
 ## Usage
 
-To fetch timezone information for a given locations or set of coordinates, make a request to the Timevault service's relevant endpoint. The service will attempt to return timezone data from Cosmos DB if available; otherwise, it will query Azure Maps for the required information and store it in Cosmos DB for future use.
+To fetch timezone information for a given locations, make a request to the Timevault service's relevant endpoint. The service will attempt to return timezone data from Cosmos DB if available; otherwise, it will query Azure Maps for the required information and store it in Cosmos DB for future use.
 
 ## Implementation Note
 
