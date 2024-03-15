@@ -194,12 +194,7 @@ namespace Cencora.Azure.Timevault
             }
 
             // Construct a new Timevault document and add it to the Timevault database.
-            TimevaultDocument document = new TimevaultDocument
-            {
-                IanaCode = ianaCode,
-                Location = location,
-                Coordinate = coordinate.Value
-            };
+            TimevaultDocument document = new TimevaultDocument(ianaCode, location, coordinate.Value);
 
             await AddTimevaultDocumentAsync(document);
 
