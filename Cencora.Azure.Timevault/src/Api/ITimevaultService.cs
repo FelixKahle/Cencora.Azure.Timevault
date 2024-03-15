@@ -14,14 +14,14 @@ namespace Cencora.Azure.Timevault
         /// </summary>
         /// <param name="location">The location to search for.</param>
         /// <returns>The IANA timezone code.</returns>
-        Task<string> SearchTimevaultIanaTimezoneCodeAsync(Location location);
+        Task<string?> SearchTimevaultIanaTimezoneCodeAsync(Location location);
 
         /// <summary>
         /// Searches for the IANA timezone code based on the provided coordinate coordinates.
         /// </summary>
         /// <param name="coordinate">The coordinate coordinates to search for.</param>
         /// <returns>The IANA timezone code.</returns>
-        Task<string> SearchTimevaultIanaTimezoneCodeAsync(GeoCoordinate coordinate);
+        Task<string?> SearchTimevaultIanaTimezoneCodeAsync(GeoCoordinate coordinate);
 
         /// <summary>
         /// Searches for Timevault documents based on the provided location.
@@ -49,13 +49,13 @@ namespace Cencora.Azure.Timevault
         /// </summary>
         /// <param name="location">The location to get the IANA timezone code for.</param>
         /// <returns>The IANA timezone code.</returns>
-        Task<string> GetIanaTimezoneAsync(Location location);
+        Task<string?> GetIanaTimezoneAsync(Location location);
 
         /// <summary>
         /// Gets the IANA timezone code based on the provided coordinate coordinates.
         /// </summary>
         /// <param name="coordinate">The coordinate coordinates to get the IANA timezone code for.</param>
         /// <returns>The IANA timezone code.</returns>
-        Task<string> GetIanaTimezoneAsync(GeoCoordinate coordinate);
+        Task<string?> GetIanaTimezoneAsync(GeoCoordinate coordinate);
     }
 }
