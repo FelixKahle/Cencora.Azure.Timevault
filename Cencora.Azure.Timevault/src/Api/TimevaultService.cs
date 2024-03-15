@@ -56,14 +56,14 @@ namespace Cencora.Azure.Timevault
         /// </summary>
         /// <param name="location">The location to search for.</param>
         /// <returns>The IANA timezone code.</returns>
-        public async Task<string> SearchTimevaultIanaTimezoneCodeAsync(Location location)
+        public async Task<string?> SearchTimevaultIanaTimezoneCodeAsync(Location location)
         {
             IList<TimevaultDocument> documents = await SearchTimevaultAsync(location);
 
             if (!documents.Any())
             {
                 _logger.LogWarning($"No Timevault documents found for location: {location}");
-                return string.Empty;
+                return null;
             }
 
             if (documents.Count > 1)
@@ -71,7 +71,7 @@ namespace Cencora.Azure.Timevault
                 _logger.LogWarning($"1 Timevault document expected for location: {location}, but {documents.Count} found. Using the first document found.");
             }
 
-            return documents.FirstOrDefault()?.IanaCode ?? string.Empty;
+            return documents.FirstOrDefault()?.IanaCode ?? null;
         }
 
         /// <summary>
@@ -79,14 +79,14 @@ namespace Cencora.Azure.Timevault
         /// </summary>
         /// <param name="coordinate">The coordinate coordinates.</param>
         /// <returns>The IANA timezone code.</returns>
-        public async Task<string> SearchTimevaultIanaTimezoneCodeAsync(GeoCoordinate coordinate)
+        public async Task<string?> SearchTimevaultIanaTimezoneCodeAsync(GeoCoordinate coordinate)
         {
             IList<TimevaultDocument> documents = await SearchTimevaultAsync(coordinate);
 
             if (!documents.Any())
             {
                 _logger.LogWarning($"No Timevault documents found for coordinate: {coordinate}");
-                return string.Empty;
+                return null;
             }
 
             if (documents.Count > 1)
@@ -94,7 +94,7 @@ namespace Cencora.Azure.Timevault
                 _logger.LogWarning($"1 Timevault document expected for coordinate: {coordinate}, but {documents.Count} found. Using the first document found.");
             }
 
-            return documents.FirstOrDefault()?.IanaCode ?? string.Empty;
+            return documents.FirstOrDefault()?.IanaCode ?? null;
         }
 
         /// <summary>
@@ -206,7 +206,7 @@ namespace Cencora.Azure.Timevault
         /// </summary>
         /// <param name="location">The location for which to retrieve the timezone code.</param>
         /// <returns>The IANA timezone code for the specified location.</returns>
-        public async Task<string> GetIanaTimezoneAsync(Location location)
+        public async Task<string?> GetIanaTimezoneAsync(Location location)
         {
             IList<TimevaultDocument> documents = await SearchTimevaultAsync(location);
 
@@ -217,7 +217,7 @@ namespace Cencora.Azure.Timevault
                 {
                     _logger.LogWarning($"1 Timevault document expected for location: {location}, but {documents.Count} found. Using the first document found.");
                 }
-                return documents.FirstOrDefault()?.IanaCode ?? string.Empty;
+                return documents.FirstOrDefault()?.IanaCode ?? null;
             }
 
             // Query the maps services to first find the geographic coordinates of the location.
@@ -238,7 +238,7 @@ namespace Cencora.Azure.Timevault
         /// </remarks>
         /// <param name="coordinate">The coordinate for which to retrieve the IANA timezone code.</param>
         /// <returns>The IANA timezone code for the given coordinate.</returns>
-        public async Task<string> GetIanaTimezoneAsync(GeoCoordinate coordinate)
+        public async Task<string?> GetIanaTimezoneAsync(GeoCoordinate coordinate)
         {
             IList<TimevaultDocument> documents = await SearchTimevaultAsync(coordinate);
 
@@ -249,7 +249,7 @@ namespace Cencora.Azure.Timevault
                 {
                     _logger.LogWarning($"1 Timevault document expected for coordinate: {coordinate}, but {documents.Count} found. Using the first document found.");
                 }
-                return documents.FirstOrDefault()?.IanaCode ?? string.Empty;
+                return documents.FirstOrDefault()?.IanaCode ?? null;
             }
 
             // TODO: Query the Timezone API to get the IANA timezone code, and add the document to the Timevault database.
