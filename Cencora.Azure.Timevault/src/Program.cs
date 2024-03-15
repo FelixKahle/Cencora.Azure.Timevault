@@ -12,6 +12,9 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
+// 30 Days.
+const int DefaultIanaCodeUpdateIntervalInMinutes = 43200;
+
 // Obtain the configuration settings from environment variables
 // Its crucial to have these settings in place, otherwise the application will not work
 // Therefore, we throw an ArgumentNullException if the environment variable is not set
@@ -19,6 +22,8 @@ string cosmosDBEndpoint = Environment.GetEnvironmentVariable("COSMOS_DB_ENDPOINT
 string timevaultDatabaseName = Environment.GetEnvironmentVariable("TIMEVAULT_DATABASE_NAME") ?? throw new ArgumentNullException("TIMEVAULT_DATABASE_NAME");
 string timevaultContainerName = Environment.GetEnvironmentVariable("TIMEVAULT_CONTAINER_NAME") ?? throw new ArgumentNullException("TIMEVAULT_CONTAINER_NAME");
 string mapsClientId = Environment.GetEnvironmentVariable("MAPS_CLIENT_ID") ?? throw new ArgumentNullException("MAPS_CLIENT_ID");
+string ianaCodeUpdateIntervalInMinutesString = Environment.GetEnvironmentVariable("IANA_CODE_UPDATE_INTERVAL_IN_MINUTES") ?? DefaultIanaCodeUpdateIntervalInMinutes.ToString();
+int ianaCodeUpdateIntervalInMinutes = int.Parse(ianaCodeUpdateIntervalInMinutesString);
 
 // Create a new Managed Identity Credential
 // This will be used to authenticate with Azure services.
@@ -44,7 +49,7 @@ var host = new HostBuilder()
         {
             TimevaultCosmosDBDatabaseName = timevaultDatabaseName,
             TimevaultCosmosDBContainerName = timevaultContainerName,
-            IanaCodeUpdateIntervalInDays = 30
+            IanaCodeUpdateIntervalInMinutes = ianaCodeUpdateIntervalInMinutes
         });
 
         // Configure the CosmosClient and add it to the services

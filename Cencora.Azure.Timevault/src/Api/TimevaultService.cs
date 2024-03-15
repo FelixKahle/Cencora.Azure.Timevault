@@ -225,9 +225,7 @@ namespace Cencora.Azure.Timevault
         {
             DateTime now = DateTime.UtcNow;
             DateTime lastUpdated = document.LastIanaCodeUpdateTimestamp;
-
-            // If the document was last updated more than 4 Months ago, an update is required.
-            return (now - lastUpdated) > TimeSpan.FromDays(_settings.IanaCodeUpdateIntervalInDays);
+            return (now - lastUpdated) > TimeSpan.FromMinutes(_settings.IanaCodeUpdateIntervalInMinutes);
         }
 
         /// <summary>

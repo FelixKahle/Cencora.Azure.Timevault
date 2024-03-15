@@ -18,7 +18,7 @@ namespace Cencora.Azure.Timevault.Tests
             {
                 TimevaultCosmosDBDatabaseName = "Timevault",
                 TimevaultCosmosDBContainerName = "Documents",
-                IanaCodeUpdateIntervalInDays = 30
+                IanaCodeUpdateIntervalInMinutes = 30
             };
         }
     }

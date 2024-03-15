@@ -214,6 +214,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'MAPS_CLIENT_ID'
           value: mapsAccount.properties.uniqueId
         }
+        {
+          name: 'IANA_CODE_UPDATE_INTERVAL_IN_MINUTES'
+          value: '43200'
+        }
       ]
     }
     clientAffinityEnabled: false

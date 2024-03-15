@@ -20,8 +20,8 @@ namespace Cencora.Azure.Timevault
         public required string TimevaultCosmosDBContainerName { get; set; }
 
         /// <summary>
-        /// Represents the interval in days for updating the IANA codes.
+        /// Represents the interval in minutes for updating the IANA codes.
         /// </summary>
-        public required int IanaCodeUpdateIntervalInDays { get; set; }
+        public required int IanaCodeUpdateIntervalInMinutes { get; set; }
     }
 }

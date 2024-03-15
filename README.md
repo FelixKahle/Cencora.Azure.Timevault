@@ -19,7 +19,30 @@ Stores and indexes timezone information linked to locations and geographic coord
 
 ## Usage
 
-To fetch timezone information for a given locations, make a request to the Timevault service's relevant endpoint. The service will attempt to return timezone data from Cosmos DB if available; otherwise, it will query Azure Maps for the required information and store it in Cosmos DB for future use.
+### Ensure Proper Configuration
+
+Before making requests, verify that the following environment variables are correctly set in your service configuration:
+
+- `COSMOS_DB_ENDPOINT`: Your Azure Cosmos DB endpoint.
+- `TIMEVAULT_DATABASE_NAME`: The name of your database within Azure Cosmos DB.
+- `TIMEVAULT_CONTAINER_NAME`: The name of your container within the Cosmos DB database.
+- `MAPS_CLIENT_ID`: Your Azure Maps client ID.
+- `IANA_CODE_UPDATE_INTERVAL_IN_MINUTES`: Interval for updating IANA codes, with a default value of 43200 minutes (30 days) if not set.
+
+**Note:** If you are using the main.bicep file to deploy the Azure infrastructure, all these variables will be correctly set up for you.
+
+### `getIanaTimezoneByLocation` Function
+
+The `getIanaTimezoneByLocation` function is for retrieving the IANA timezone based on location details. It is designed to increase the accuracy of the timezone returned with the specificity of the information provided.
+
+#### Parameters
+
+This function requires at least one of the following parameters to be specified. The more details you provide, the higher the likelihood of accurately determining the correct timezone:
+
+- `city` (optional): Name of the city.
+- `country` (optional): Name of the country.
+- `state` (optional): Name of the state or region.
+- `postalCode` (optional): Postal or ZIP code.
 
 ## Implementation Note
 
