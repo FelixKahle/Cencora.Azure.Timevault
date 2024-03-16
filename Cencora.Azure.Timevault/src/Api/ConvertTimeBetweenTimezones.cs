@@ -48,7 +48,7 @@ namespace Cencora.Azure.Timevault
             string fromStateString = req.Query["fromState"].ToString().ToLower();
             string fromPostalCodeString = req.Query["fromPostalCode"].ToString().ToLower();
             string fromCountryString = req.Query["fromCountry"].ToString().ToLower();
-            string fromTimeString = req.Query["fromTimezone"].ToString();
+            string fromTimeString = req.Query["fromTime"].ToString();
 
             string toCityString = req.Query["toCity"].ToString().ToLower();
             string toStateString = req.Query["toState"].ToString().ToLower();
@@ -92,9 +92,11 @@ namespace Cencora.Azure.Timevault
                 TimeZoneInfo sourceTimeZone = TimeZoneInfo.FindSystemTimeZoneById(fromTimezone);
                 TimeZoneInfo targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(toTimezone);
 
-                DateTime convertedDateTime = TimeZoneInfo.ConvertTime(dateTime, sourceTimeZone, targetTimeZone);
+                DateTimeOffset sourceDateTimeOffset = DateTimeOffset.Parse(fromTimeString, CultureInfo.InvariantCulture);
+                sourceDateTimeOffset = new DateTimeOffset(sourceDateTimeOffset.DateTime, sourceTimeZone.GetUtcOffset(sourceDateTimeOffset.DateTime));
+                DateTimeOffset targetDateTimeOffset = TimeZoneInfo.ConvertTime(sourceDateTimeOffset, targetTimeZone);
 
-                return new OkObjectResult(convertedDateTime);
+                return new OkObjectResult(targetDateTimeOffset);
             }
             catch (Exception ex)
             {
