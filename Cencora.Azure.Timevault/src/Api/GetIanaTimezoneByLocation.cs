@@ -81,7 +81,14 @@ namespace Cencora.Azure.Timevault
                 {
                     return new NotFoundObjectResult($"No timezone found for the provided location: {location}");
                 }
-                return new OkObjectResult(timezone);
+
+                GetIanaTimezoneByLocationResult result = new GetIanaTimezoneByLocationResult
+                {
+                    Location = location,
+                    IanaTimezone = timezone
+                };
+                
+                return new OkObjectResult(result);
             }
             catch (Exception ex)
             {

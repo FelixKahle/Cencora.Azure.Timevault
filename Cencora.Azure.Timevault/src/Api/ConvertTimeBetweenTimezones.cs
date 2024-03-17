@@ -88,15 +88,28 @@ namespace Cencora.Azure.Timevault
                     return new NotFoundObjectResult($"No timezone found for the provided location: {toLocation}");
                 }
 
-                DateTime dateTime = DateTime.Parse(fromTimeString, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+                DateTime dateTime = DateTime.Parse(fromTimeString, CultureInfo.InvariantCulture);
                 TimeZoneInfo sourceTimeZone = TimeZoneInfo.FindSystemTimeZoneById(fromTimezone);
                 TimeZoneInfo targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(toTimezone);
 
-                DateTimeOffset sourceDateTimeOffset = DateTimeOffset.Parse(fromTimeString, CultureInfo.InvariantCulture);
-                sourceDateTimeOffset = new DateTimeOffset(sourceDateTimeOffset.DateTime, sourceTimeZone.GetUtcOffset(sourceDateTimeOffset.DateTime));
+                // Correctly create a DateTimeOffset with the source timezone's offset
+                DateTimeOffset sourceDateTimeOffset = new DateTimeOffset(dateTime, sourceTimeZone.GetUtcOffset(dateTime));
+
+                // Convert the DateTimeOffset to the target timezone
                 DateTimeOffset targetDateTimeOffset = TimeZoneInfo.ConvertTime(sourceDateTimeOffset, targetTimeZone);
 
-                return new OkObjectResult(targetDateTimeOffset);
+                // Extract the DateTime in the target timezone
+                DateTime targetDateTime = targetDateTimeOffset.DateTime;
+
+                ConvertTimeBetweenTimezonesResult result = new ConvertTimeBetweenTimezonesResult
+                {
+                    FromLocation = fromLocation,
+                    ToLocation = toLocation,
+                    FromTime = dateTime,
+                    ToTime = targetDateTime
+                };
+
+                return new OkObjectResult(result);
             }
             catch (Exception ex)
             {
