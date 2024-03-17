@@ -31,18 +31,73 @@ Before making requests, verify that the following environment variables are corr
 
 **Note:** If you are using the main.bicep file to deploy the Azure infrastructure, all these variables will be correctly set up for you.
 
-### `getIanaTimezoneByLocation` Function
+### `getIanaTimezoneByLocation` API Endpoint
 
-The `getIanaTimezoneByLocation` function is for retrieving the IANA timezone based on location details. It is designed to increase the accuracy of the timezone returned with the specificity of the information provided.
+#### Overview
+The `getIanaTimezoneByLocation` endpoint is designed to retrieve the IANA timezone based on geographical information. It accepts GET requests with the following parameters, aimed to specify the location for which the timezone information is requested. The precision of the timezone returned improves with the number of parameters provided.
 
-#### Parameters
+#### Request Parameters
+- `city` (optional): The name of the city.
+- `country` (optional): The name of the country.
+- `state` (optional): The name of the state or region.
+- `postalCode` (optional): The postal or ZIP code.
 
-This function requires at least one of the following parameters to be specified. The more details you provide, the higher the likelihood of accurately determining the correct timezone:
+**Note:** Providing more detailed location information results in a more accurate timezone determination.
 
-- `city` (optional): Name of the city.
-- `country` (optional): Name of the country.
-- `state` (optional): Name of the state or region.
-- `postalCode` (optional): Postal or ZIP code.
+#### Response Format
+The response is a JSON object containing the queried location details and its corresponding IANA timezone identifier.
+
+```json
+{
+  "location": {
+    "city": "<queried city>",
+    "state": "<queried state>",
+    "country": "<queried country>",
+    "postalCode": "<queried postalCode>"
+  },
+  "ianaTimezone": "<IANA timezone identifier>"
+}
+```
+
+### `convertTimeBetweenTimezones` API Endpoint
+
+#### Overview
+The `convertTimeBetweenTimezones` endpoint is designed for converting time between different timezones based on specified locations and a given time. It supports GET requests with parameters detailing the origin and destination locations, as well as the initial time.
+
+#### Request Parameters
+- `fromCity` (optional): The name of the origin city.
+- `fromState` (optional): The name of the origin state or region.
+- `fromCountry` (optional): The name of the origin country.
+- `fromPostalCode` (optional): The postal or ZIP code of the origin location.
+- `fromTime`: The original time in ISO 8601 format (mandatory).
+- `toCity` (optional): The name of the destination city.
+- `toState` (optional): The name of the destination state or region.
+- `toCountry` (optional): The name of the destination country.
+- `toPostalCode` (optional): The postal or ZIP code of the destination location.
+
+**Note**: It is crucial to provide the fromTime parameter in a valid ISO 8601 format to ensure accurate conversion. At least one location parameter (city, state, country, postalCode) must be provided for both origin and destination. Providing more detailed location information results in a more accurate timezone determination.
+
+#### Response Format
+The response is a JSON object detailing the original and converted times along with the respective locations:
+
+```json
+{
+  "fromLocation": {
+    "city": "<origin city>",
+    "state": "<origin state>",
+    "country": "<origin country>",
+    "postalCode": "<origin postalCode>"
+  },
+  "toLocation": {
+    "city": "<destination city>",
+    "state": "<destination state>",
+    "country": "<destination country>",
+    "postalCode": "<destination postalCode>"
+  },
+  "fromTime": "<original time in ISO 8601 format>",
+  "toTime": "<converted time in ISO 8601 format>"
+}
+```
 
 ## Implementation Note
 

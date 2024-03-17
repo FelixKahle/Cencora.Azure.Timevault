@@ -53,7 +53,7 @@ namespace Cencora.Azure.Timevault
         /// If successful, the function returns the timezone information as an OkObjectResult. If an error occurs, a 500 Internal Server Error response is returned.
         /// </remarks>
         [Function("getIanaTimezoneByLocation")]
-        public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req)
+        public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequest req)
         {
             string cityString = req.Query["city"].ToString().ToLower();
             string stateString = req.Query["state"].ToString().ToLower();

@@ -42,7 +42,7 @@ namespace Cencora.Azure.Timevault
         /// <param name="req">The HTTP request containing the location and time parameters.</param>
         /// <returns>An <see cref="IActionResult"/> representing the result of the conversion.</returns>
         [Function("convertTimeBetweenTimezones")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequest req)
         {
             string fromCityString = req.Query["fromCity"].ToString().ToLower();
             string fromStateString = req.Query["fromState"].ToString().ToLower();
@@ -72,6 +72,12 @@ namespace Cencora.Azure.Timevault
 
             Location fromLocation = new Location(fromCityString, fromStateString, fromPostalCodeString, fromCountryString);
             Location toLocation = new Location(toCityString, toStateString, toPostalCodeString, toCountryString);
+            
+            DateTime dateTime;
+            if (!DateTime.TryParse(fromTimeString, out dateTime))
+            {
+                return new BadRequestObjectResult("The 'fromTime' parameter is not a valid date and time. Please provide a valid date in ISO 8601 format.");
+            }
 
             try
             {
@@ -88,7 +94,7 @@ namespace Cencora.Azure.Timevault
                     return new NotFoundObjectResult($"No timezone found for the provided location: {toLocation}");
                 }
 
-                DateTime dateTime = DateTime.Parse(fromTimeString, CultureInfo.InvariantCulture);
+                // Parse the provided time string
                 TimeZoneInfo sourceTimeZone = TimeZoneInfo.FindSystemTimeZoneById(fromTimezone);
                 TimeZoneInfo targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(toTimezone);
 
