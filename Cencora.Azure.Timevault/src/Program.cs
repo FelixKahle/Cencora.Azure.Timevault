@@ -11,6 +11,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Polly;
 
 // 30 Days.
 const int DefaultIanaCodeUpdateIntervalInMinutes = 43200;
@@ -22,8 +23,18 @@ string cosmosDBEndpoint = Environment.GetEnvironmentVariable("COSMOS_DB_ENDPOINT
 string timevaultDatabaseName = Environment.GetEnvironmentVariable("TIMEVAULT_DATABASE_NAME") ?? throw new ArgumentNullException("TIMEVAULT_DATABASE_NAME");
 string timevaultContainerName = Environment.GetEnvironmentVariable("TIMEVAULT_CONTAINER_NAME") ?? throw new ArgumentNullException("TIMEVAULT_CONTAINER_NAME");
 string mapsClientId = Environment.GetEnvironmentVariable("MAPS_CLIENT_ID") ?? throw new ArgumentNullException("MAPS_CLIENT_ID");
+
 string ianaCodeUpdateIntervalInMinutesString = Environment.GetEnvironmentVariable("IANA_CODE_UPDATE_INTERVAL_IN_MINUTES") ?? DefaultIanaCodeUpdateIntervalInMinutes.ToString();
 int ianaCodeUpdateIntervalInMinutes = int.Parse(ianaCodeUpdateIntervalInMinutesString);
+
+string retryDelayString = Environment.GetEnvironmentVariable("RETRY_DELAY") ?? "1000";
+int retryDelay = int.Parse(retryDelayString);
+
+string maxRetryDelayString = Environment.GetEnvironmentVariable("MAX_RETRY_DELAY") ?? "10000";
+int maxRetryDelay = int.Parse(maxRetryDelayString);
+
+string maxRetryAttemptsString = Environment.GetEnvironmentVariable("MAX_RETRY_ATTEMPTS") ?? "7";
+int maxRetryAttempts = int.Parse(maxRetryAttemptsString);
 
 // Create a new Managed Identity Credential
 // This will be used to authenticate with Azure services.
@@ -49,7 +60,11 @@ var host = new HostBuilder()
         {
             TimevaultCosmosDBDatabaseName = timevaultDatabaseName,
             TimevaultCosmosDBContainerName = timevaultContainerName,
-            IanaCodeUpdateIntervalInMinutes = ianaCodeUpdateIntervalInMinutes
+            IanaCodeUpdateIntervalInMinutes = ianaCodeUpdateIntervalInMinutes,
+            RetryDelayMilliseconds = retryDelay,
+            BackoffType = DelayBackoffType.Exponential,
+            MaxRetryDelayInMilliseconds = maxRetryDelay,
+            MaxRetryAttempts = maxRetryAttempts
         });
 
         // Configure the CosmosClient and add it to the services

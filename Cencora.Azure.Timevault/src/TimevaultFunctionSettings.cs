@@ -2,6 +2,8 @@
 //
 // Written by Felix Kahle, A123234, felix.kahle@worldcourier.de
 
+using Polly;
+
 namespace Cencora.Azure.Timevault
 {
     /// <summary>
@@ -23,5 +25,30 @@ namespace Cencora.Azure.Timevault
         /// Represents the interval in minutes for updating the IANA codes.
         /// </summary>
         public required int IanaCodeUpdateIntervalInMinutes { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to use jitter.
+        /// </summary>
+        public required bool UseJitter { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the maximum number of retry attempts for the operation.
+        /// </summary>
+        public required int MaxRetryAttempts { get; set; }
+
+        /// <summary>
+        /// Gets or sets the base retry interval in milliseconds for retrying an operation.
+        /// </summary>
+        public required int RetryDelayMilliseconds { get; set; }
+
+        /// <summary>
+        /// Gets or sets the type of delay backoff.
+        /// </summary>
+        public required DelayBackoffType BackoffType { get; set; }
+
+        /// <summary>
+        /// Gets or sets the maximum delay in milliseconds for retrying an operation.
+        /// </summary>
+        public required int MaxRetryDelayInMilliseconds { get; set; }
     }
 }

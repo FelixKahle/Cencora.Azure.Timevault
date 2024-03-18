@@ -10,12 +10,12 @@ using Azure.Maps.Timezone;
 using Azure.Maps.Timezone.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Fallback;
+using Polly.Retry;
 
 namespace Cencora.Azure.Timevault
 {
-    /// <summary>
-    /// Represents a service for interacting with the Timevault functionality.
-    /// </summary>
     public class TimevaultService : ITimevaultService
     {
         /// <summary>
@@ -66,145 +66,94 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Searches for the IANA timezone code based on the given location.
+        /// Searches the Timevault asynchronously based on the specified location.
         /// </summary>
         /// <param name="location">The location to search for.</param>
-        /// <returns>The IANA timezone code.</returns>
-        public async Task<string?> SearchTimevaultIanaTimezoneCodeAsync(Location location)
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A list of Timevault documents that match the specified location.</returns>
+        public async Task<IList<TimevaultDocument>> SearchTimevaultAsync(Location location, CancellationToken cancellationToken = default)
         {
-            IList<TimevaultDocument> documents = await SearchTimevaultAsync(location);
-
-            if (!documents.Any())
-            {
-                _logger.LogWarning($"No Timevault documents found for location: {location}");
-                return null;
-            }
-
-            if (documents.Count > 1)
-            {
-                _logger.LogWarning($"1 Timevault document expected for location: {location}, but {documents.Count} found. Using the first document found.");
-            }
-
-            return documents.FirstOrDefault()?.IanaCode ?? null;
+            // Build the query string based on the location.
+            string query = BuildLocationQueryString(location);
+            return await QueryTimevaultAsync(query, cancellationToken);
         }
 
         /// <summary>
-        /// Searches for Timevault documents based on the specified location.
+        /// Searches the Timevault for documents based on the specified IANA timezone code.
         /// </summary>
-        /// <param name="location">The location to search for.</param>
-        /// <returns>A list of Timevault documents matching the specified location.</returns>
-        public async Task<IList<TimevaultDocument>> SearchTimevaultAsync(Location location)
+        /// <param name="ianaCode">The IANA timezone code to search for.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A list of Timevault documents matching the specified IANA timezone code.</returns>
+        public async Task<IList<TimevaultDocument>> SearchTimevaultAsync(string ianaCode, CancellationToken cancellationToken = default)
         {
-            List<TimevaultDocument> result = new List<TimevaultDocument>();
+            // Build the query string based on the IANA timezone code.
+            string query = $"SELECT * FROM c WHERE c.ianaCode = '{ianaCode}'";
+            return await QueryTimevaultAsync(query, cancellationToken);
+        }
 
-            try
+        /// <summary>
+        /// Queries the Timevault service asynchronously to retrieve a list of Timevault documents based on the specified query.
+        /// </summary>
+        /// <param name="query">The query string used to filter the Timevault documents.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains a list of Timevault documents.</returns>
+        /// <exception cref="ArgumentException">Thrown when the query is null, empty, or whitespace.</exception>
+        public async Task<IList<TimevaultDocument>> QueryTimevaultAsync(string query, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(query) || string.IsNullOrWhiteSpace(query))
             {
+                throw new ArgumentException("The query cannot be null, empty, or whitespace.", nameof(query));
+            }
+
+            var retryOptions = new RetryStrategyOptions
+            {
+                // https://learn.microsoft.com/en-us/dotnet/api/microsoft.azure.cosmos.cosmosexception.statuscode?view=azure-dotnet#microsoft-azure-cosmos-cosmosexception-statuscode
+                //
+                // 429: Too Many Requests
+                // 449: Retry With
+                // For these status codes, we want to retry the request.
+                //
+                // All other errors should propagate to the caller.
+                ShouldHandle = new PredicateBuilder()
+                    .Handle<RequestFailedException>(ex => ex.Status == 429 || ex.Status == 449)
+                    .Handle<CosmosException>(ex => ex.StatusCode == (HttpStatusCode)429 || ex.StatusCode == (HttpStatusCode)449),
+                MaxRetryAttempts = _settings.MaxRetryAttempts,
+                Delay = TimeSpan.FromMilliseconds(_settings.RetryDelayMilliseconds),
+                UseJitter = _settings.UseJitter,
+                MaxDelay = TimeSpan.FromMilliseconds(_settings.MaxRetryDelayInMilliseconds),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning($"Retry request for query: {query}. Attempt: {args.AttemptNumber}");
+                    return default;
+                }
+            };
+
+            var pipelineBuilder = new ResiliencePipelineBuilder().AddRetry(retryOptions);
+            var pipeline = pipelineBuilder.Build();
+
+            return await pipeline.ExecuteAsync(async token =>
+            {
+                List<TimevaultDocument> result = new List<TimevaultDocument>();
+
                 Database database = _cosmosClient.GetDatabase(_settings.TimevaultCosmosDBDatabaseName);
                 Container container = database.GetContainer(_settings.TimevaultCosmosDBContainerName);
-
-                string queryString = BuildlocationQueryString(location);
-                if (string.IsNullOrEmpty(queryString))
-                {
-                    _logger.LogWarning($"No query string generated for location: {location}");
-                    return result;
-                }
-
-                QueryDefinition queryDefinition = new QueryDefinition(queryString);
+                QueryDefinition queryDefinition = new QueryDefinition(query);
                 FeedIterator<TimevaultDocument> iterator = container.GetItemQueryIterator<TimevaultDocument>(queryDefinition);
                 while (iterator.HasMoreResults)
                 {
                     FeedResponse<TimevaultDocument> response = await iterator.ReadNextAsync();
                     result.AddRange(response);
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error searching for Timevault documents: {ex.Message}");
-            }
 
-            return result;
+                return result;
+            }, cancellationToken);
         }
 
         /// <summary>
-        /// Searches for Timevault documents based on the provided IANA code.
-        /// </summary>
-        /// <param name="ianaCode">The IANA code to search for.</param>
-        /// <returns>A list of Timevault documents matching the provided IANA code.</returns>
-        public async Task<IList<TimevaultDocument>> SearchTimevaultAsync(string ianaCode)
-        {
-            List<TimevaultDocument> result = new List<TimevaultDocument>();
-
-            try
-            {
-                Database database = _cosmosClient.GetDatabase(_settings.TimevaultCosmosDBDatabaseName);
-                Container container = database.GetContainer(_settings.TimevaultCosmosDBContainerName);
-
-                string queryString = $"SELECT * FROM c WHERE c.ianaCode = '{ianaCode}'";
-
-                QueryDefinition queryDefinition = new QueryDefinition(queryString);
-                FeedIterator<TimevaultDocument> iterator = container.GetItemQueryIterator<TimevaultDocument>(queryDefinition);
-                while (iterator.HasMoreResults)
-                {
-                    FeedResponse<TimevaultDocument> response = await iterator.ReadNextAsync();
-                    result.AddRange(response);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error searching for Timevault documents: {ex.Message}");
-            }
-            return result;
-        }
-
-
-        /// <summary>
-        /// Retrieves the IANA timezone code for a given location.
-        /// </summary>
-        /// <param name="location">The location for which to retrieve the timezone code.</param>
-        /// <returns>The IANA timezone code for the specified location.</returns>
-        public async Task<string?> GetIanaTimezoneAsync(Location location)
-        {
-            IList<TimevaultDocument> documents = await SearchTimevaultAsync(location);
-
-            if (documents.Any())
-            {
-                TimevaultDocument foundDocument = documents.First();
-                if (documents.Count > 1)
-                {
-                    _logger.LogWarning($"1 Timevault document expected for location: {location}, but {documents.Count} found. Using the first document found.");
-                }
-                await TryUpdateTimevaultDocumentIanaCode(foundDocument);
-                return foundDocument.IanaCode;
-            }
-            else
-            {
-                _logger.LogInformation($"No Timevault document found for location: {location}. Creating new document...");
-
-                GeoCoordinate? coordinate = await MapsSearchlocation(location);
-                if (coordinate == null)
-                {
-                    _logger.LogWarning($"No coordinates found for location: {location}");
-                    return null;
-                }
-
-                string? ianaCode = await MapsSearchTimezoneAsync(coordinate.Value);
-                if (ianaCode == null)
-                {
-                    _logger.LogWarning($"No IANA timezone code found for coordinate: {coordinate}");
-                    return null;
-                }
-
-                TimevaultDocument newDocument = new TimevaultDocument(ianaCode, location, coordinate.Value, DateTime.UtcNow);
-                await UpsertTimevaultDocumentAsync(newDocument);
-                return ianaCode;
-            }
-        }
-
-        /// <summary>
-        /// Determines if an update to the IANA timezone code is required for the specified Timevault document.
+        /// Determines if an update to the IANA timezone code is required for the given document.
         /// </summary>
         /// <param name="document">The Timevault document to check.</param>
-        /// <returns>True if an update to the IANA timezone code is required, otherwise false.</returns>
+        /// <returns><c>true</c> if an update is required, <c>false</c> otherwise.</returns>
         public bool RequiredIanaTimezoneCodeUpdate(TimevaultDocument document)
         {
             DateTime now = DateTime.UtcNow;
@@ -213,203 +162,158 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Updates the IANA code of a Timevault document based on its coordinate.
+        /// Updates the IANA timezone code for a given <see cref="TimevaultDocument"/> asynchronously.
         /// </summary>
-        /// <param name="document">The Timevault document to update.</param>
-        /// <returns>The updated Timevault document.</returns>
-        public async Task<TimevaultDocument> UpdateTimevaultDocumentIanaCode(TimevaultDocument document)
+        /// <param name="document">The <see cref="TimevaultDocument"/> to update.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The updated <see cref="TimevaultDocument"/>.</returns>
+        public async Task<TimevaultDocument> UpdateIanaTimezoneCodeAsync(TimevaultDocument document, CancellationToken cancellationToken = default)
         {
-            string? ianaCode = await MapsSearchTimezoneAsync(document.Coordinate);
-            if (ianaCode == null)
+            GeoCoordinate coordinate = document.Coordinate;
+            string ianaCode = await SearchMapsIanaTimezoneCodeAsync(coordinate);
+
+            // Update the IANA code if it has changed, and log the update for monitoring and debugging.
+            // IANA code updates are infrequent, thus tracking these changes helps in evaluating the necessity to modify update intervals.
+            if (document.IanaCode != ianaCode)
             {
-                _logger.LogWarning($"No IANA timezone code found for coordinate: {document.Coordinate}");
-                return document;
+                _logger.LogInformation($"Updating IANA timezone code for document with id: {document.Id}. Old IANA code: {document.IanaCode}. New IANA code: {ianaCode}");
+                document.IanaCode = ianaCode;
+            }
+            else
+            {
+                _logger.LogInformation($"No update required for IANA timezone code for document with id: {document.Id}. IANA code: {document.IanaCode}");
             }
 
-            document.IanaCode = ianaCode;
+            // Update the timestamp for the last IANA code update to the current UTC time.
+            // This occurs regardless of whether the IANA code was changed to ensure the document's metadata is always current.
             document.LastIanaCodeUpdateTimestamp = DateTime.UtcNow;
-            await UpsertTimevaultDocumentAsync(document);
+
+            // Upsert the updated document to the Timevault.
+            await UpsertTimevaultDocumentAsync(document, cancellationToken);
 
             return document;
         }
 
         /// <summary>
-        /// Tries to update the IANA timezone code of a Timevault document.
+        /// Upserts a timevault document asynchronously.
         /// </summary>
-        /// <param name="document">The Timevault document to update.</param>
-        /// <returns>
-        /// The updated Timevault document if the IANA timezone code needs to be updated,
-        /// otherwise returns the original document.
-        /// </returns>
-        public async Task<TimevaultDocument> TryUpdateTimevaultDocumentIanaCode(TimevaultDocument document)
-        {
-            if (RequiredIanaTimezoneCodeUpdate(document))
-            {
-                return await UpdateTimevaultDocumentIanaCode(document);
-            }
-            return document;
-        }
-
-        /// <summary>
-        /// Searches for a location using the provided query string.
-        /// </summary>
-        /// <param name="location">The location to search for.</param>
-        /// <returns>The geographic coordinates of the searched location, or null if not found.</returns>
-        private async Task<GeoCoordinate?> MapsSearchlocation(Location location)
-        {
-            string queryString = location.MapsQueryString();
-            return await MapsSearchlocation(queryString);
-        }
-
-        /// <summary>
-        /// Searches for an location using the specified query string and returns the corresponding GeoCoordinate.
-        /// </summary>
-        /// <param name="queryString">The query string used to search for the location.</param>
-        /// <returns>The GeoCoordinate of the best matching location, or null if no results were found or an error occurred.</returns>
-        private async Task<GeoCoordinate?> MapsSearchlocation(string queryString)
-        {
-            try
-            {
-                SearchAddressResult result = await _mapsSearchClient.SearchAddressAsync(queryString);
-                var bestResult = result.Results.OrderByDescending(r => r.Score).FirstOrDefault();
-
-                if (bestResult != null)
-                {
-                    return new GeoCoordinate(bestResult.Position.Latitude, bestResult.Position.Longitude);
-                }
-                else
-                {
-                    return null;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error searching for location: {queryString}, {ex.Message}");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Searches for the geo-coordinates of the given locations using the Maps service.
-        /// </summary>
-        /// <param name="locationes">The locations to search for.</param>
-        /// <returns>A dictionary containing the locations and their corresponding geo-coordinates.</returns>
-        private async Task<Dictionary<Location, GeoCoordinate?>> MapsSearchlocationes(IEnumerable<Location> locationes)
-        {
-            var queryStringMap = locationes.Distinct().ToDictionary(a => a, a => a.MapsQueryString());
-            Dictionary<string, GeoCoordinate?> stringGeoPositions = await MapsSearchlocationes(queryStringMap.Values);
-
-            return queryStringMap.ToDictionary(pair => pair.Key, pair => stringGeoPositions[pair.Value]);
-        }
-
-        /// <summary>
-        /// Searches for locationes using the provided query strings and returns a dictionary of location and corresponding GeoCoordinate.
-        /// </summary>
-        /// <param name="queryStrings">The collection of query strings to search for locationes.</param>
-        /// <returns>A dictionary containing the location as the key and the corresponding GeoCoordinate as the value.</returns>
-        private async Task<Dictionary<string, GeoCoordinate?>> MapsSearchlocationes(IEnumerable<string> queryStrings)
-        {
-            IEnumerable<SearchAddressQuery> queries = queryStrings.Distinct().Select(x => new SearchAddressQuery(x));
-            var locationGeoCoordinates = new Dictionary<string, GeoCoordinate?>(queries.Count());
-
-            try
-            {
-                SearchAddressBatchOperation batchResult = await _mapsSearchClient.SearchAddressBatchAsync(WaitUntil.Completed, queries);
-                foreach (var queryResult in batchResult.Value.Results)
-                {
-                    var bestResult = queryResult.Results.OrderByDescending(r => r.Score).First();
-                    if (bestResult != null)
-                    {
-                        GeoCoordinate geoCoordinate = new GeoCoordinate(bestResult.Position.Latitude, bestResult.Position.Longitude);
-                        locationGeoCoordinates.Add(queryResult.Query, geoCoordinate);
-                    }
-                    else
-                    {
-                        _logger.LogWarning($"No GeoCoordinate found for query: {queryResult.Query}");
-                        locationGeoCoordinates.Add(queryResult.Query, null);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error searching for locationes: {ex.Message}");
-            }
-
-            return locationGeoCoordinates;
-        }
-
-        /// <summary>
-        /// Searches for the timezone based on the given coordinates.
-        /// </summary>
-        /// <param name="coordinate">The coordinates to search for.</param>
-        /// <returns>The timezone ID if found, or null if no timezone is found.</returns>
-        private async Task<string?> MapsSearchTimezoneAsync(GeoCoordinate coordinate)
-        {
-            try
-            {
-                IEnumerable<double> coordinates = new[] { coordinate.Latitude, coordinate.Longitude };
-                TimezoneResult result = await _mapsTimezoneClient.GetTimezoneByCoordinatesAsync(coordinates);
-
-                if (result == null || !result.TimeZones.Any())
-                {
-                    return null;
-                }
-
-                if (result.TimeZones.Count() > 1)
-                {
-                    _logger.LogWarning($"1 timezone expected for coordinate: {coordinate}, but {result.TimeZones.Count()} found. Using the first timezone found.");
-                }
-
-                return result.TimeZones.FirstOrDefault()?.Id;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error searching for timezone: {ex.Message}");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Adds a <see cref="TimevaultDocument"/> to the Cosmos DB database.
-        /// </summary>
-        /// <param name="document">The <see cref="TimevaultDocument"/> to add.</param>
+        /// <param name="document">The timevault document to upsert.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
-        /// <exception cref="ArgumentNullException">Thrown when the <paramref name="document"/> is <c>null</c>.</exception>
-        /// <exception cref="ArgumentException">Thrown when the <see cref="TimevaultDocument.Id"/> or <see cref="TimevaultDocument.IanaCode"/> is <c>null</c> or empty.</exception>
-        private async Task UpsertTimevaultDocumentAsync(TimevaultDocument document)
+        /// <exception cref="ArgumentNullException">Thrown when the document is null.</exception>
+        public async Task UpsertTimevaultDocumentAsync(TimevaultDocument document, CancellationToken cancellationToken = default)
         {
             if (document == null)
             {
                 throw new ArgumentNullException(nameof(document));
             }
 
-            if (string.IsNullOrEmpty(document.Id))
+            if (string.IsNullOrEmpty(document.Id) || string.IsNullOrWhiteSpace(document.Id))
             {
-                throw new ArgumentException("The document identifier cannot be null or empty.", nameof(document.Id));
+                throw new ArgumentException("The document id cannot be null, empty, or whitespace.", nameof(document.Id));
             }
 
-            if (string.IsNullOrEmpty(document.IanaCode))
+            if (string.IsNullOrEmpty(document.IanaCode) || string.IsNullOrWhiteSpace(document.IanaCode))
             {
-                throw new ArgumentException("The IANA timezone code cannot be null or empty.", nameof(document.IanaCode));
+                throw new ArgumentException("The document IANA code cannot be null, empty, or whitespace.", nameof(document.IanaCode));
             }
 
-            PartitionKey partitionKey = new PartitionKey(document.IanaCode);
+            Database database = _cosmosClient.GetDatabase(_settings.TimevaultCosmosDBDatabaseName);
+            Container container = database.GetContainer(_settings.TimevaultCosmosDBContainerName);
 
-            try
+            var retryOptions = new RetryStrategyOptions
             {
-                Database database = _cosmosClient.GetDatabase(_settings.TimevaultCosmosDBDatabaseName);
-                Container container = database.GetContainer(_settings.TimevaultCosmosDBContainerName);
-                ItemResponse<TimevaultDocument> response = await container.UpsertItemAsync(document, partitionKey);
-            }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
+                // https://learn.microsoft.com/en-us/dotnet/api/microsoft.azure.cosmos.cosmosexception.statuscode?view=azure-dotnet#microsoft-azure-cosmos-cosmosexception-statuscode
+                //
+                // 429: Too Many Requests
+                // 449: Retry With
+                // For these status codes, we want to retry the request.
+                //
+                // All other errors should propagate to the caller.
+                ShouldHandle = new PredicateBuilder()
+                    .Handle<RequestFailedException>(ex => ex.Status == 429 || ex.Status == 449)
+                    .Handle<CosmosException>(ex => ex.StatusCode == (HttpStatusCode)429 || ex.StatusCode == (HttpStatusCode)449),
+                MaxRetryAttempts = _settings.MaxRetryAttempts,
+                Delay = TimeSpan.FromMilliseconds(_settings.RetryDelayMilliseconds),
+                UseJitter = _settings.UseJitter,
+                MaxDelay = TimeSpan.FromMilliseconds(_settings.MaxRetryDelayInMilliseconds),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning($"Retry upsert request for document with id: {document.Id}. Attempt: {args.AttemptNumber}");
+                    return default;
+                }
+            };
+
+            var pipelineBuilder = new ResiliencePipelineBuilder().AddRetry(retryOptions);
+            var pipeline = pipelineBuilder.Build();
+
+            await pipeline.ExecuteAsync(async token =>
             {
-                // This is not really an error but should never occur anyway.
-                _logger.LogWarning($"Conflict adding Timevault document: {ex.Message}");
-            }
-            catch (Exception ex)
+                await container.UpsertItemAsync(document, new PartitionKey(document.IanaCode));
+            }, cancellationToken);
+        }
+
+        
+        /// <summary>
+        /// Searches for the IANA timezone code corresponding to the given coordinate using the Azure Maps API.
+        /// </summary>
+        /// <param name="coordinate">The coordinate for which to search the timezone.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the asynchronous operation (optional).</param>
+        /// <returns>The IANA timezone code corresponding to the given coordinate.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the timezone information for the given coordinate could not be retrieved.</exception>
+        public async Task<string> SearchMapsIanaTimezoneCodeAsync(GeoCoordinate coordinate, CancellationToken cancellationToken = default)
+        {
+            // The Azure Maps API expects the coordinates in the format [latitude, longitude].
+            IEnumerable<double> coordinates = [coordinate.Latitude, coordinate.Longitude];
+
+            var retryOptions = new RetryStrategyOptions
             {
-                _logger.LogError($"Error adding Timevault document: {ex.Message}");
+                // https://learn.microsoft.com/en-us/azure/azure-maps/azure-maps-qps-rate-limits
+                //
+                // 429 - Too Many Requests. It is safe to retry the request.
+                ShouldHandle = new PredicateBuilder().Handle<RequestFailedException>(ex => ex.Status == 429),
+                MaxRetryAttempts = _settings.MaxRetryAttempts,
+                Delay = TimeSpan.FromMilliseconds(_settings.RetryDelayMilliseconds),
+                UseJitter = _settings.UseJitter,
+                MaxDelay = TimeSpan.FromMilliseconds(_settings.MaxRetryDelayInMilliseconds),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning($"Retry maps timezone request for coordinate: {coordinate}. Attempt: {args.AttemptNumber}");
+                    return default;
+                }
+            };
+
+            var pipelineBuilder = new ResiliencePipelineBuilder().AddRetry(retryOptions);
+            var pipeline = pipelineBuilder.Build();
+            TimezoneResult timezoneResult = await pipeline.ExecuteAsync(
+                async token => await _mapsTimezoneClient.GetTimezoneByCoordinatesAsync(coordinates), 
+                cancellationToken
+            );
+
+            // If this is true, we did not find any timezone information for the given coordinate.
+            if (timezoneResult == null || timezoneResult.TimeZones == null || !timezoneResult.TimeZones.Any())
+            {
+                throw new InvalidOperationException($"Failed to retrieve timezone information for coordinate: {coordinate}");
             }
+
+            // For a coordinate, we expect to find only one timezone result.
+            // If we find more than one result, we log a warning and use the first result.
+            if (timezoneResult.TimeZones.Count() > 1)
+            {
+                _logger.LogWarning($"Found multiple timezone results for coordinate: {coordinate}. Using the first result.");
+            }
+
+            // It is safe to assume that we have at least one timezone result.
+            // We already checked for this case above.
+            var timezone = timezoneResult.TimeZones.First().Id;
+
+            // Check if the timezone is valid.
+            if (string.IsNullOrEmpty(timezone) || string.IsNullOrWhiteSpace(timezone))
+            {
+                throw new InvalidOperationException($"Failed to retrieve timezone information for coordinate: {coordinate}");
+            }
+
+            return timezone;
         }
 
         /// <summary>
@@ -418,7 +322,7 @@ namespace Cencora.Azure.Timevault
         /// </summary>
         /// <param name="location">The location object containing the city, state, postal code, and country.</param>
         /// <returns>The constructed query string.</returns>
-        private string BuildlocationQueryString(Location location)
+        private string BuildLocationQueryString(Location location)
         {
             var queryParts = new List<string>(4);
             if (!string.IsNullOrEmpty(location.City) && !string.IsNullOrWhiteSpace(location.City))
