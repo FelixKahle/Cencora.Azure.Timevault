@@ -201,69 +201,6 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
-        /// Retrieves the IANA timezone codes for a batch of locations asynchronously.
-        /// </summary>
-        /// <param name="locations">The collection of locations to retrieve the IANA timezone codes for.</param>
-        /// <returns>A dictionary containing the IANA timezone code for each location. If a location is not found or an error occurs, the value will be null.</returns>
-        public async Task<Dictionary<Location, string?>> GetIanaTimezoneBatchAsync(IEnumerable<Location> locations)
-        {
-            // Stores the result of the IANA timezone code search for each location.
-            Dictionary<Location, string?> result = new Dictionary<Location, string?>();
-
-            // Make sure that the locations are unique.
-            locations = locations.Distinct();
-
-            // All locations that have not been found in the Timevault database.
-            // These locations will be searched for and added to the database.
-            List<Location> locationsToSearch = new List<Location>();
-
-            foreach (Location location in locations)
-            {
-                IList<TimevaultDocument> documents = await SearchTimevaultAsync(location);
-                if (documents.Any())
-                {
-                    TimevaultDocument foundDocument = documents.First();
-                    if (documents.Count > 1)
-                    {
-                        _logger.LogWarning($"1 Timevault document expected for location: {location}, but {documents.Count} found. Using the first document found.");
-                    }
-                    await TryUpdateTimevaultDocumentIanaCode(foundDocument);
-                    result.Add(location, foundDocument.IanaCode);
-                }
-                else
-                {
-                    locationsToSearch.Add(location);
-                }
-            }
-
-            if (locationsToSearch.Any())
-            {
-                Dictionary<Location, GeoCoordinate?> locationGeoCoordinates = await MapsSearchlocationes(locationsToSearch);
-                foreach (var locationGeoCoordinatePair in locationGeoCoordinates)
-                {
-                    if (locationGeoCoordinatePair.Value == null)
-                    {
-                        result.Add(locationGeoCoordinatePair.Key, null);
-                        continue;
-                    }
-
-                    string? ianaCode = await MapsSearchTimezoneAsync(locationGeoCoordinatePair.Value.Value);
-                    if (string.IsNullOrEmpty(ianaCode))
-                    {
-                        result.Add(locationGeoCoordinatePair.Key, null);
-                        continue;
-                    }
-
-                    TimevaultDocument newDocument = new TimevaultDocument(ianaCode, locationGeoCoordinatePair.Key, locationGeoCoordinatePair.Value.Value, DateTime.UtcNow);
-                    await UpsertTimevaultDocumentAsync(newDocument);
-                    result.Add(locationGeoCoordinatePair.Key, ianaCode);
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
         /// Determines if an update to the IANA timezone code is required for the specified Timevault document.
         /// </summary>
         /// <param name="document">The Timevault document to check.</param>
