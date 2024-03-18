@@ -64,7 +64,7 @@ var host = new HostBuilder()
             RetryDelayMilliseconds = retryDelay,
             BackoffType = DelayBackoffType.Exponential,
             MaxRetryDelayInMilliseconds = maxRetryDelay,
-            MaxRetryAttempts = maxRetryAttempts
+            MaxRetryAttempts = maxRetryAttempts,
             UseJitter = true
         });
 

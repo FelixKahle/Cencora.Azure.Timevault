@@ -12,6 +12,14 @@ namespace Cencora.Azure.Timevault
     public interface ITimevaultService
     {
         /// <summary>
+        /// Retrieves the IANA code for a given location asynchronously.
+        /// </summary>
+        /// <param name="location">The location for which to retrieve the IANA code.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the asynchronous operation (optional).</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the IANA code as a string.</returns>
+        Task<string> GetIanaCodeByLocationAsync(Location location, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Searches the Timevault for timevault documents based on the specified location.
         /// </summary>
         /// <param name="location">The location to search for.</param>

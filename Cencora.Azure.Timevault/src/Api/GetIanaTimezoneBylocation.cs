@@ -75,7 +75,7 @@ namespace Cencora.Azure.Timevault
 
             try
             {
-                string ianaTimezone = await _timevaultService.GetIanaTimezoneByLocationAsync(location);
+                string ianaTimezone = await _timevaultService.GetIanaCodeByLocationAsync(location);
                 
                 GetIanaTimezoneByLocationResult result = new GetIanaTimezoneByLocationResult
                 {
