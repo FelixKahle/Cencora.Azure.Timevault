@@ -77,23 +77,20 @@ namespace Cencora.Azure.Timevault
             
             if (documents != null && documents.Any())
             {
-                _logger.LogInformation($"No Timevault document found for location: {location}. Creating new document...");
-                
                 if (documents.Count > 1)
                 {
                     _logger.LogWarning($"Found multiple Timevault documents for location: {location}. Using the first document.");
                 }
 
                 TimevaultDocument document = documents.First();
-                if (RequiredIanaTimezoneCodeUpdate(document))
-                {
-                    document = await UpdateIanaTimezoneCodeAsync(document, cancellationToken);
-                }
+                await AttemptUpdateIanaTimezoneCodeAsync(document, cancellationToken);
 
                 return document.IanaCode;
             }
             else
             {
+                _logger.LogInformation($"No Timevault document found for location: {location}. Creating new document...");
+
                 GeoCoordinate coordinate = await SearchMapsGeoCoordinateAsync(location, cancellationToken);
                 string ianaCode = await SearchMapsIanaTimezoneCodeAsync(coordinate, cancellationToken);
 
@@ -190,11 +187,32 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
+        /// Attempts to update the IANA timezone code for a given Timevault document.
+        /// </summary>
+        /// <param name="document">The Timevault document to update.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The updated Timevault document.</returns>
+        public async Task<TimevaultDocument> AttemptUpdateIanaTimezoneCodeAsync(TimevaultDocument document, CancellationToken cancellationToken = default)
+        {
+            if (RequireIanaTimezoneCodeUpdate(document))
+            {
+                _logger.LogInformation($"Timevault document with id: {document.Id} is considered outdated. Attempting to update the IANA timezone code...");
+                document = await UpdateIanaTimezoneCodeAsync(document, cancellationToken);
+            }
+            else
+            {
+                _logger.LogInformation($"Timevault document with id: {document.Id} is up to date. No update required.");
+            }
+
+            return document;
+        }
+
+        /// <summary>
         /// Determines if an update to the IANA timezone code is required for the given document.
         /// </summary>
         /// <param name="document">The Timevault document to check.</param>
         /// <returns><c>true</c> if an update is required, <c>false</c> otherwise.</returns>
-        public bool RequiredIanaTimezoneCodeUpdate(TimevaultDocument document)
+        public bool RequireIanaTimezoneCodeUpdate(TimevaultDocument document)
         {
             DateTime now = DateTime.UtcNow;
             DateTime lastUpdated = document.LastIanaCodeUpdateTimestamp;
@@ -221,7 +239,7 @@ namespace Cencora.Azure.Timevault
             }
             else
             {
-                _logger.LogInformation($"No update required for IANA timezone code for document with id: {document.Id}. IANA code: {document.IanaCode}");
+                _logger.LogInformation($"No update required for IANA timezone code for document with id: {document.Id}. IANA code: {ianaCode}. Timestamp will be updated.");
             }
 
             // Update the timestamp for the last IANA code update to the current UTC time.
@@ -310,13 +328,7 @@ namespace Cencora.Azure.Timevault
                 throw new InvalidOperationException($"Failed to retrieve coordinate information for location: {location}");
             }
 
-            // For a location, we expect to find only one result.
-            // If we find more than one result, we log a warning and use the first result.
-            if (result.Results.Count() > 1)
-            {
-                _logger.LogWarning($"Found multiple coordinate results for location: {location}. Using the first result.");
-            }
-
+            // Order the results by score and use the best result.
             var bestResult = result.Results.OrderByDescending(r => r.Score).FirstOrDefault();
             if (bestResult == null)
             {

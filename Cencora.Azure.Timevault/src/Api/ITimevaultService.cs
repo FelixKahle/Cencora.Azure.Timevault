@@ -44,11 +44,19 @@ namespace Cencora.Azure.Timevault
         Task<IList<TimevaultDocument>> QueryTimevaultAsync(string query, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Attempts to update the IANA timezone code of a Timevault document asynchronously.
+        /// </summary>
+        /// <param name="document">The Timevault document to update.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task representing the asynchronous operation. The task result contains the updated Timevault document.</returns>
+        Task<TimevaultDocument> AttemptUpdateIanaTimezoneCodeAsync(TimevaultDocument document, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Determines if an update to the IANA timezone code is required for the given document.
         /// </summary>
         /// <param name="document">The Timevault document to check.</param>
         /// <returns><c>true</c> if an update is required, <c>false</c> otherwise.</returns>
-        bool RequiredIanaTimezoneCodeUpdate(TimevaultDocument document);
+        bool RequireIanaTimezoneCodeUpdate(TimevaultDocument document);
 
         /// <summary>
         /// Upserts a timevault document into the Timevault.
