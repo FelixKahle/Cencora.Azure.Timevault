@@ -65,6 +65,7 @@ var host = new HostBuilder()
             BackoffType = DelayBackoffType.Exponential,
             MaxRetryDelayInMilliseconds = maxRetryDelay,
             MaxRetryAttempts = maxRetryAttempts
+            UseJitter = true
         });
 
         // Configure the CosmosClient and add it to the services
