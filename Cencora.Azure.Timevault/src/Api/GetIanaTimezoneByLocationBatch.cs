@@ -52,13 +52,13 @@ namespace Cencora.Azure.Timevault
 
                 Dictionary<Location, string?> result = await _timevaultService.GetIanaTimezoneBatchAsync(locationBatch);
 
-                result.Select(x => new GetIanaTimezoneByLocationResult
+                var resultList = result.Select(x => new GetIanaTimezoneByLocationResult
                 {
                     Location = x.Key,
                     IanaTimezone = x.Value
                 }).ToList();
 
-                return new OkObjectResult(result);
+                return new OkObjectResult(resultList);
             }
             catch (Exception ex)
             {
