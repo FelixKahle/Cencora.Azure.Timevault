@@ -36,27 +36,35 @@ namespace Cencora.Azure.Timevault
         [Function("getIanaTimezoneByLocationBatch")]
         public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req)
         {
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            if (string.IsNullOrEmpty(requestBody))
+            try
             {
-                return new BadRequestObjectResult("The request body cannot be empty.");
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                if (string.IsNullOrEmpty(requestBody))
+                {
+                    return new BadRequestObjectResult("The request body cannot be empty.");
+                }
+
+                var locationBatch = JsonSerializer.Deserialize<List<Location>>(requestBody);
+                if (locationBatch == null || !locationBatch.Any())
+                {
+                    return new BadRequestObjectResult("The request body must contain a non-empty array of location objects.");
+                }
+
+                Dictionary<Location, string?> result = await _timevaultService.GetIanaTimezoneBatchAsync(locationBatch);
+
+                result.Select(x => new GetIanaTimezoneByLocationResult
+                {
+                    Location = x.Key,
+                    IanaTimezone = x.Value
+                }).ToList();
+
+                return new OkObjectResult(result);
             }
-
-            var locationBatch = JsonSerializer.Deserialize<List<Location>>(requestBody);
-            if (locationBatch == null || !locationBatch.Any())
+            catch (Exception ex)
             {
-                return new BadRequestObjectResult("The request body must contain a non-empty array of location objects.");
+                _logger.LogError($"An error occurred while processing the request: {ex}");
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
             }
-
-            Dictionary<Location, string?> result = await _timevaultService.GetIanaTimezoneBatchAsync(locationBatch);
-
-            result.Select(x => new GetIanaTimezoneByLocationResult
-            {
-                Location = x.Key,
-                IanaTimezone = x.Value
-            }).ToList();
-
-            return new OkObjectResult(result);
         }
     }
 }

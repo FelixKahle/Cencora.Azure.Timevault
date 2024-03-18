@@ -2,7 +2,6 @@
 //
 // Written by Felix Kahle, A123234, felix.kahle@worldcourier.de
 
-using System.Globalization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
