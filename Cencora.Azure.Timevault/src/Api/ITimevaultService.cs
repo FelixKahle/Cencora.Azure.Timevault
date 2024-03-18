@@ -38,6 +38,13 @@ namespace Cencora.Azure.Timevault
         Task<string?> GetIanaTimezoneAsync(Location location);
 
         /// <summary>
+        /// Retrieves the IANA timezones for a batch of locations asynchronously.
+        /// </summary>
+        /// <param name="locations">The collection of locations for which to retrieve the IANA timezones.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains a dictionary where the keys are the locations and the values are the corresponding IANA timezones.</returns>
+        Task<Dictionary<Location, string?>> GetIanaTimezoneBatchAsync(IEnumerable<Location> locations);
+
+        /// <summary>
         /// Determines if an update to the IANA timezone code is required for the specified Timevault document.
         /// </summary>
         /// <param name="document">The Timevault document to check.</param>
