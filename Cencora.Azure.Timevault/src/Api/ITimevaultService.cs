@@ -2,6 +2,8 @@
 //
 // Written by Felix Kahle, A123234, felix.kahle@worldcourier.de
 
+using Azure.Maps.Search.Models;
+
 namespace Cencora.Azure.Timevault
 {
     /// <summary>
@@ -55,6 +57,22 @@ namespace Cencora.Azure.Timevault
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the updated timevault document.</returns>
         Task<TimevaultDocument> UpdateIanaTimezoneCodeAsync(TimevaultDocument document, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Searches for a geographic coordinate (GeoCoordinate) based on the provided location.
+        /// </summary>
+        /// <param name="location">The location to search for.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the operation.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the GeoCoordinate for the provided location.</returns>
+        Task<GeoCoordinate> SearchMapsGeoCoordinateAsync(Location location, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Queries the maps search address API asynchronously.
+        /// </summary>
+        /// <param name="query">The search query.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the search address result.</returns>
+        Task<SearchAddressResult> QueryMapsSearchAddressAsync(string query, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Searches the Maps service for the IANA timezone code based on the specified geographic coordinate.

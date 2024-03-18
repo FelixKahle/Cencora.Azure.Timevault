@@ -11,7 +11,6 @@ using Azure.Maps.Timezone.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Polly;
-using Polly.Fallback;
 using Polly.Retry;
 
 namespace Cencora.Azure.Timevault
@@ -63,6 +62,47 @@ namespace Cencora.Azure.Timevault
             _cosmosClient = cosmosClient;
             _mapsSearchClient = mapsSearchClient;
             _mapsTimezoneClient = mapsTimezoneClient;
+        }
+
+        /// <summary>
+        /// Retrieves the IANA code for a given location asynchronously.
+        /// If the IANA code is not found in the Timevault, it searches for the IANA code using the Maps service.
+        /// </summary>
+        /// <param name="location">The location for which to retrieve the IANA code.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the asynchronous operation.</param>
+        /// <returns>The IANA code for the given location.</returns>
+        public async Task<string> GetIanaCodeByLocationAsync(Location location, CancellationToken cancellationToken = default)
+        {
+            IList<TimevaultDocument> documents = await SearchTimevaultAsync(location, cancellationToken);
+            
+            if (documents != null && documents.Any())
+            {
+                _logger.LogInformation($"No Timevault document found for location: {location}. Creating new document...");
+                
+                if (documents.Count > 1)
+                {
+                    _logger.LogWarning($"Found multiple Timevault documents for location: {location}. Using the first document.");
+                }
+
+                TimevaultDocument document = documents.First();
+                if (RequiredIanaTimezoneCodeUpdate(document))
+                {
+                    document = await UpdateIanaTimezoneCodeAsync(document, cancellationToken);
+                }
+
+                return document.IanaCode;
+            }
+            else
+            {
+                GeoCoordinate coordinate = await SearchMapsGeoCoordinateAsync(location, cancellationToken);
+                string ianaCode = await SearchMapsIanaTimezoneCodeAsync(coordinate, cancellationToken);
+
+                // Create a new Timevault document for the location and IANA code.
+                TimevaultDocument document = new TimevaultDocument(ianaCode, location, coordinate, DateTime.UtcNow);
+                await UpsertTimevaultDocumentAsync(document, cancellationToken);
+
+                return ianaCode;
+            }
         }
 
         /// <summary>
@@ -251,6 +291,86 @@ namespace Cencora.Azure.Timevault
             {
                 await container.UpsertItemAsync(document, new PartitionKey(document.IanaCode));
             }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Searches for a geographic coordinate (GeoCoordinate) based on the provided location using the Maps service.
+        /// </summary>
+        /// <param name="location">The location to search for.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the asynchronous operation (optional).</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the GeoCoordinate of the location.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when failed to retrieve coordinate information for the location.</exception>
+        public async Task<GeoCoordinate> SearchMapsGeoCoordinateAsync(Location location, CancellationToken cancellationToken = default)
+        {
+            string query = location.MapsQueryString();
+            SearchAddressResult result = await QueryMapsSearchAddressAsync(query, cancellationToken);
+
+            if (result == null || result.Results == null || !result.Results.Any())
+            {
+                throw new InvalidOperationException($"Failed to retrieve coordinate information for location: {location}");
+            }
+
+            // For a location, we expect to find only one result.
+            // If we find more than one result, we log a warning and use the first result.
+            if (result.Results.Count() > 1)
+            {
+                _logger.LogWarning($"Found multiple coordinate results for location: {location}. Using the first result.");
+            }
+
+            var bestResult = result.Results.OrderByDescending(r => r.Score).FirstOrDefault();
+            if (bestResult == null)
+            {
+                throw new InvalidOperationException($"Failed to retrieve coordinate information for location: {location}");
+            }
+
+            return new GeoCoordinate(bestResult.Position.Latitude, bestResult.Position.Longitude);
+        }
+
+        /// <summary>
+        /// Queries the Azure Maps search service to retrieve address information based on the specified query.
+        /// </summary>
+        /// <param name="query">The search query.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the search address result.</returns>
+        /// <exception cref="ArgumentException">Thrown when the query is null, empty, or whitespace.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when failed to retrieve address information for the query.</exception>
+        public async Task<SearchAddressResult> QueryMapsSearchAddressAsync(string query, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(query) || string.IsNullOrWhiteSpace(query))
+            {
+                throw new ArgumentException("The query cannot be null, empty, or whitespace.", nameof(query));
+            }
+
+            var retryOptions = new RetryStrategyOptions
+            {
+                // https://learn.microsoft.com/en-us/azure/azure-maps/azure-maps-qps-rate-limits
+                //
+                // 429 - Too Many Requests. It is safe to retry the request.
+                ShouldHandle = new PredicateBuilder().Handle<RequestFailedException>(ex => ex.Status == 429),
+                MaxRetryAttempts = _settings.MaxRetryAttempts,
+                Delay = TimeSpan.FromMilliseconds(_settings.RetryDelayMilliseconds),
+                UseJitter = _settings.UseJitter,
+                MaxDelay = TimeSpan.FromMilliseconds(_settings.MaxRetryDelayInMilliseconds),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning($"Retry maps search address request for query: {query}. Attempt: {args.AttemptNumber}");
+                    return default;
+                }
+            };
+
+            var pipelineBuilder = new ResiliencePipelineBuilder().AddRetry(retryOptions);
+            var pipeline = pipelineBuilder.Build();
+            SearchAddressResult result = await pipeline.ExecuteAsync(
+                async token => await _mapsSearchClient.SearchAddressAsync(query), 
+                cancellationToken
+            );
+
+            if (result == null)
+            {
+                throw new InvalidOperationException($"Failed to retrieve address information for query: {query}");
+            }
+
+            return result;
         }
 
         
