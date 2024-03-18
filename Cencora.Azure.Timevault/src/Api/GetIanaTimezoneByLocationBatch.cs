@@ -10,6 +10,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Cencora.Azure.Timevault
 {
+    /// <summary>
+    /// Represents a batch request for retrieving IANA timezones by location.
+    /// </summary>
+    public struct LocationBatchRequest
+    {
+        /// <summary>
+        /// Gets or sets the list of locations for the batch request.
+        /// </summary>
+        public List<Location> Body { get; set; }
+    }
+
     public class GetIanaTimezoneByLocationBatch
     {
         /// <summary>
@@ -44,13 +55,14 @@ namespace Cencora.Azure.Timevault
                     return new BadRequestObjectResult("The request body cannot be empty.");
                 }
 
-                var locationBatch = JsonSerializer.Deserialize<List<Location>>(requestBody);
-                if (locationBatch == null || !locationBatch.Any())
+                var locationBatch = JsonSerializer.Deserialize<LocationBatchRequest>(requestBody);
+                if (locationBatch.Body == null || locationBatch.Body.Count == 0)
                 {
-                    return new BadRequestObjectResult("The request body must contain a non-empty array of location objects.");
+                    return new BadRequestObjectResult("The request body must contain a non-empty list of locations.");
                 }
 
-                Dictionary<Location, string?> result = await _timevaultService.GetIanaTimezoneBatchAsync(locationBatch);
+                var locations = locationBatch.Body;
+                Dictionary<Location, string?> result = await _timevaultService.GetIanaTimezoneBatchAsync(locations);
 
                 var resultList = result.Select(x => new GetIanaTimezoneByLocationResult
                 {
