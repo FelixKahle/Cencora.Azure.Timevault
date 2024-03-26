@@ -498,7 +498,7 @@ namespace Cencora.Azure.Timevault
             // This will significantly reduce the operation time for large batches as well reduce costs.
             var allLocations = fromLocations.Concat(toLocations).Distinct().ToList();
             
-            IDictionary<Location, ApiResponse<string>> ianaCodes;
+            IDictionary<Location, ApiResponse<string>> ianaCodes = new Dictionary<Location, ApiResponse<string>>();
             try
             {
                 ianaCodes = await _timevaultService.GetIanaCodeByLocationBatchAsync(allLocations);
