@@ -493,12 +493,15 @@ namespace Cencora.Azure.Timevault
             var fromLocations = data.Where(x => x.IsFromLocationValid()).Select(x => x.GetFromLocation()).Distinct().ToList();
             var toLocations = data.Where(x => x.IsToLocationValid()).Select(x => x.GetToLocation()).Distinct().ToList();
 
-            IDictionary<Location, ApiResponse<string>> fromLocationIanaCodes;
-            IDictionary<Location, ApiResponse<string>> toLocationIanaCodes;
+            // We concatenate the from and to locations and remove duplicates,
+            // as this will reduce the number of requests to the Timevault service.
+            // This will significantly reduce the operation time for large batches as well reduce costs.
+            var allLocations = fromLocations.Concat(toLocations).Distinct().ToList();
+            
+            IDictionary<Location, ApiResponse<string>> ianaCodes;
             try
             {
-                fromLocationIanaCodes = await _timevaultService.GetIanaCodeByLocationBatchAsync(fromLocations);
-                toLocationIanaCodes = await _timevaultService.GetIanaCodeByLocationBatchAsync(toLocations);
+                ianaCodes = await _timevaultService.GetIanaCodeByLocationBatchAsync(allLocations);
             }
             catch (Exception ex)
             {
@@ -523,7 +526,7 @@ namespace Cencora.Azure.Timevault
                 ApiResponse<string>? fromLocationIanaCode;
                 ApiResponse<string>? toLocationIanaCode;
 
-                if (!fromLocationIanaCodes.TryGetValue(fromLocation, out fromLocationIanaCode))
+                if (!ianaCodes.TryGetValue(fromLocation, out fromLocationIanaCode))
                 {
                     _logger.LogWarning($"No timezone found for the provided location: {fromLocation}");
 
@@ -536,7 +539,7 @@ namespace Cencora.Azure.Timevault
                     continue;
                 }
 
-                if (!toLocationIanaCodes.TryGetValue(toLocation, out toLocationIanaCode))
+                if (!ianaCodes.TryGetValue(toLocation, out toLocationIanaCode))
                 {
                     _logger.LogWarning($"No timezone found for the provided location: {toLocation}");
 

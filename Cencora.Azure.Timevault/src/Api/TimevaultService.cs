@@ -141,18 +141,23 @@ namespace Cencora.Azure.Timevault
             // improving the performance of the dictionary.
             var finalResults = new Dictionary<Location, ApiResponse<string>>(distinctLocations.Count());
 
-            // Create a list to store the search tasks.
-            // Then we can wait for all the search tasks to complete.
-            var searchTasks = distinctLocations.Select(FetchTimevaultAsync).ToList();
-            var searchResults = await Task.WhenAll(searchTasks);
+            // We now search for the Timevault documents for each location.
+            // Searching is done asynchronously to improve the performance,
+            // however we limit the number of concurrent requests to 20 to prevent overloading the Timevault database.
+            // By default it should have a RU limit of 5000.
+            // Note that 20 was some sort of stomach feeling, as we do not have any performance data to back this up.
+            var searchResults = await RunWithLimitedConcurrencyAsync(
+                distinctLocations,
+                FetchTimevaultAsync,
+                20
+            );
 
             // Create a list to store the locations that need to be searched.
             // These are all the locations that did not have a Timevault document.
             var locationsToSearch = new List<Location>();
 
-            // Create a list to store the update tasks.
-            // These are the tasks that update the Timevault documents.
-            var updateTasks = new List<Task<(Location, TimevaultDocument)>>();
+            // This list will hold every document that need to be updated  in the database.
+            var updateDocuments = new List<(Location Location, TimevaultDocument Document)>();
 
             // We now loop through the search results.
             // If we found a Timevault document, we add it to the update tasks.
@@ -171,7 +176,7 @@ namespace Cencora.Azure.Timevault
 
                     TimevaultDocument document = documents.First();
 
-                    updateTasks.Add(UpdateDocumentAsync(location, document));
+                    updateDocuments.Add((location, document));
                 }
                 else
                 {
@@ -180,66 +185,96 @@ namespace Cencora.Azure.Timevault
                 }
             }
 
-            // Now we search for the locations that did not have a Timevault document.
-            var coordinateResults = await Task.WhenAll(locationsToSearch.Select(FetchCoordinateAsync));
+            // We now update the documents that we found in the Timevault database.
+            // Some of them require an update, some do not.
+            // Note that we do not await the task here, as we want to update the documents in parallel to improve the performance.
+            // While we update the documents, we start searching for the locations that did not have a Timevault document.
+            var updatedDocumentsTask = RunWithLimitedConcurrencyAsync(
+                updateDocuments,
+                async keyValuePair => await UpdateDocumentAsync(keyValuePair.Location, keyValuePair.Document),
+                20
+            );
 
-            // We now have the coordinates for all the locations that did not have a Timevault document.
-            // We can now search for the timezone code for each location.
-            // This list will store the tasks that fetch the timezone code for each location.
-            var timezoneFetchTasks = new List<Task<(Location, GeoCoordinate, ApiResponse<string>)>>();
-
-            // We now loop through the coordinate results.
-            // If we found a coordinate, we add it to the timezone fetch tasks.
-            // If we did not find a coordinate, we add an error response to the final results,
-            // as we cannot fetch the timezone code without a coordinate.
-            foreach (var (location, coordinateResult) in coordinateResults)
+            // Only search for locations if we have any to search.
+            if (locationsToSearch.Any())
             {
-                if (!coordinateResult.IsSuccess)
+                // If we have locations to search, we search for the coordinates using the Maps API.
+                // We search by utilizing the batch search functionality of the Maps API,
+                // which allows us to search for multiple locations in a single request.
+                // This will decrease the number of requests to the Maps API and improve the performance,
+                // as we just need to wait for one request to complete.
+                var coordinates = await MapsSearchCoordinateBatchAsync(locationsToSearch);
+
+                // First of all loop through the coordinates and check if we have any errors.
+                // Any error can be added to the final results and we do not need to continue with the timezone search for these locations.
+                foreach (var (location, coordinateResult) in coordinates)
                 {
-                    finalResults.TryAdd(location, ApiResponse<string>.Error(coordinateResult.ErrorMessage, coordinateResult.StatusCode));
-                    continue;
+                    if (!coordinateResult.IsSuccess)
+                    {
+                        finalResults.TryAdd(location, ApiResponse<string>.Error(coordinateResult.ErrorMessage, coordinateResult.StatusCode));
+                    }
                 }
 
-                timezoneFetchTasks.Add(FetchTimezoneCodeAsync(location, coordinateResult.Value));
-            }
+                // We now filter the coordinates to only include the successful ones.
+                var successfulCoordinates = coordinates
+                    .Where(cr => cr.Value.IsSuccess)
+                    .ToDictionary(cr => cr.Key, cr => cr.Value);
 
-            // Now we fetch the timezone code for each location.
-            var fetchedTimezones = await Task.WhenAll(timezoneFetchTasks);
+                // These are the fetched timezones.
+                // We fetch these asynchronously to improve the performance,
+                // however we limit the number of concurrent requests to 10 to prevent overloading the Maps API.
+                var fetchedTimezones = await RunWithLimitedConcurrencyAsync(
+                    successfulCoordinates,
+                    async keyValuePair => 
+                    {
+                        // It is completly fine here to access the Value property directly, as we know that the dictionary
+                        // only contains successful results.
+                        GeoCoordinate coordinate = keyValuePair.Value.Value;
+                        Location location = keyValuePair.Key;
+                        return await FetchTimezoneCodeAsync(location, coordinate);
+                    },
+                    10
+                );
 
-            // This list will store the tasks that upsert the Timevault documents.
-            // We will upsert the Timevault documents for each location that we successfully fetched the timezone code for.
-            var documentUpsertTasks = new List<Task>();
+                // These are all documents that need to be uploaed to the database.
+                var documentToUpsert = new List<TimevaultDocument>();
 
-            // We now loop through the fetched timezones.
-            // If we found a timezone code, we add it to the final results and create a new Timevault document.
-            // If we did not find a timezone code, we add an error response to the final results.
-            foreach (var (location, coordinate, timezoneResponse) in fetchedTimezones)
-            {
-                if (!timezoneResponse.IsSuccess)
+                // We now loop through the fetched timezones.
+                // If we found a timezone code, we add it to the final results and create a new Timevault document.
+                // If we did not find a timezone code, we add an error response to the final results.
+                foreach (var (location, coordinate, timezoneResponse) in fetchedTimezones)
                 {
+                    if (!timezoneResponse.IsSuccess)
+                    {
+                        finalResults.TryAdd(location, timezoneResponse);
+                        continue;
+                    }
+
+                    // Update final results with the fetched timezone
                     finalResults.TryAdd(location, timezoneResponse);
-                    continue;
+
+                    // Create a new Timevault document and queue it for upsert
+                    TimevaultDocument newDocument = new TimevaultDocument(timezoneResponse.Value, location, coordinate, DateTime.UtcNow);
+                    documentToUpsert.Add(newDocument);
                 }
 
-                // Update final results with the fetched timezone
-                finalResults.TryAdd(location, timezoneResponse);
-
-                // Create a new Timevault document and queue it for upsert
-                TimevaultDocument newDocument = new TimevaultDocument(timezoneResponse.Value, location, coordinate, DateTime.UtcNow);
-                documentUpsertTasks.Add(UpsertTimevaultAsync(newDocument));
+                // We now upsert the new documents to the Timevault database.
+                await RunWithLimitedConcurrencyAsync(
+                    documentToUpsert,
+                    UpsertTimevaultAsync,
+                    20
+                );
             }
 
-            // As we do not need the found we can wait for the update tasks to complete here.
-            var updatedDocuments = await Task.WhenAll(updateTasks);
+            // Wait for the updated documents to complete.
+            var updatedDocuments = await updatedDocumentsTask;
+
+            // Finally, we update the final results with the updated documents.
             foreach (var (location, updatedDocument) in updatedDocuments)
             {
                 finalResults.Add(location, ApiResponse<string>.Success(updatedDocument.IanaCode));
             }
 
-            // Wait for all the upsert tasks to complete
-            await Task.WhenAll(documentUpsertTasks);
-            
-            // Finally, we return the final results
             return finalResults;
         }
 
@@ -269,6 +304,9 @@ namespace Cencora.Azure.Timevault
         /// <summary>
         /// Fetches the coordinate for a given location asynchronously.
         /// </summary>
+        /// <remarks>
+        /// Currently unused, as it has been replaced by the batch search functionality.
+        /// </remarks>
         /// <param name="location">The location for which to fetch the coordinate.</param>
         /// <returns>A tuple containing the location and the coordinate response.</returns>
         private async Task<(Location, ApiResponse<GeoCoordinate>)> FetchCoordinateAsync(Location location)
@@ -281,6 +319,9 @@ namespace Cencora.Azure.Timevault
         /// <summary>
         /// Helper method to fetch the timezone code for a given location asynchronously.
         /// </summary>
+        /// <remarks>
+        /// Timezone API does not support batch processing, so we need to fetch the timezone code for each location individually.
+        /// </remarks>
         /// <param name="location">The location to fetch the timezone code for.</param>
         /// <param name="coordinate">The coordinate to fetch the timezone code for.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the location and the API response with the timezone code.</returns>
@@ -299,6 +340,53 @@ namespace Cencora.Azure.Timevault
         {
             string query = BuildLocationQueryString(location);
             return await QueryTimevaultAsync(query);
+        }
+
+        /// <summary>
+        /// Executes a collection of asynchronous operations with limited concurrency.
+        /// </summary>
+        /// <typeparam name="T">The type of the items in the collection.</typeparam>
+        /// <typeparam name="TResult">The type of the results returned by the operations.</typeparam>
+        /// <param name="items">The collection of items to process.</param>
+        /// <param name="operation">The asynchronous operation to perform on each item.</param>
+        /// <param name="maxConcurrency">The maximum number of concurrent operations.</param>
+        /// <returns>A task representing the asynchronous operation. The task will complete when all operations have finished and return the results.</returns>
+        public async Task<IEnumerable<TResult>> RunWithLimitedConcurrencyAsync<T, TResult>(
+            IEnumerable<T> items,
+            Func<T, Task<TResult>> operation,
+            int maxConcurrency
+        )
+        {
+            // Ensure there's a positive concurrency limit
+            if (maxConcurrency <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxConcurrency), "Concurrency limit must be positive.");
+            }
+
+            // Initialize the semaphore with the desired max concurrency
+            var semaphore = new SemaphoreSlim(maxConcurrency);
+            var tasks = new List<Task<TResult>>();
+
+            // Launch tasks with limited concurrency
+            foreach (var item in items)
+            {
+                await semaphore.WaitAsync();
+
+                tasks.Add(Task.Run(async () =>
+                {
+                    try
+                    {
+                        return await operation(item);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }));
+            }
+
+            // Wait for all tasks to complete and return the results
+            return await Task.WhenAll(tasks);
         }
 
         /// <summary>
@@ -574,7 +662,8 @@ namespace Cencora.Azure.Timevault
             ApiResponse<SearchAddressResult> searchAddressResult = await MapsSearchAddressAsync(query);
             if (!searchAddressResult)
             {
-                return ApiResponse<GeoCoordinate>.Error(searchAddressResult.ErrorMessage, searchAddressResult.StatusCode);
+                string errorMessage = searchAddressResult.ErrorMessage ?? $"An error occurred while searching for coordinate with query {query}";
+                return ApiResponse<GeoCoordinate>.Error(errorMessage, searchAddressResult.StatusCode);
             }
 
             SearchAddressResult addressResult = searchAddressResult.Value;
@@ -599,6 +688,233 @@ namespace Cencora.Azure.Timevault
         {
             string query = location.MapsQueryString();
             return await MapsSearchCoordinateAsync(query);
+        }
+
+        /// <summary>
+        /// Searches for addresses in batch based on the provided query strings.
+        /// </summary>
+        /// <param name="queryStrings">The collection of query strings.</param>
+        /// <returns>An asynchronous task that represents the operation and contains the search results.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="queryStrings"/> is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="queryStrings"/> is empty.</exception>
+        public async Task<ApiResponse<SearchAddressBatchOperation>> MapsSearchAddressBatchAsync(IEnumerable<string> queryStrings)
+        {
+            if (queryStrings == null)
+            {
+                throw new ArgumentNullException(nameof(queryStrings));
+            }
+
+            if (!queryStrings.Any())
+            {
+                throw new ArgumentException("The queries collection cannot be empty.", nameof(queryStrings));
+            }
+
+            _logger.LogInformation($"{nameof(MapsSearchAddressAsync)}: Searching for addresses in batch with {queryStrings.Count()} queries.");
+
+            try
+            {
+                var queries = queryStrings.Distinct().Select(q => new SearchAddressQuery(q));
+
+                // The batch search operation only supports up to 100 queries.
+                // When we are below or equal to 100 queries, we can use the synchronous method, as this will be faster
+                // than the asynchronous method.
+                // When we are above 100 queries, we need to use the asynchronous method, as this will be faster than due to the 
+                // large number of queries.
+                if (queries.Count() <= 100)
+                {
+                    SearchAddressBatchOperation batchResponse = _mapsSearchClient.SearchAddressBatch(WaitUntil.Completed, queries);
+                    return ApiResponse<SearchAddressBatchOperation>.Success(batchResponse);
+                }
+                else
+                {
+                    SearchAddressBatchOperation batchResponse = await _mapsSearchClient.SearchAddressBatchAsync(WaitUntil.Completed, queries);
+                    return ApiResponse<SearchAddressBatchOperation>.Success(batchResponse);
+                }
+            }
+            catch (RequestFailedException exception)
+            {
+                _logger.LogError(exception, $"An error occurred while searching for addresses in batch: {exception.Message}");
+                return exception.ToApiResponse<SearchAddressBatchOperation>();
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, $"An error occurred while searching for addresses in batch: {exception.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Searches for addresses using the Maps service asynchronously.
+        /// </summary>
+        /// <param name="locations">The collection of locations to search for.</param>
+        /// <returns>An asynchronous task that represents the operation. The task result contains the search address batch operation response.</returns>
+        public async Task<ApiResponse<SearchAddressBatchOperation>> MapsSearchAddressBatchAsync(IEnumerable<Location> locations)
+        {
+            var queryStrings = locations.Distinct().Select(l => l.MapsQueryString());
+            return await MapsSearchAddressBatchAsync(queryStrings);
+        }
+
+        /// <summary>
+        /// Maps a collection of query strings to a dictionary of search results using the Maps API.
+        /// </summary>
+        /// <param name="queryStrings">The collection of query strings to search for.</param>
+        /// <returns>A dictionary where the key is the query string and the value is the search result.</returns>
+        public async Task<IDictionary<string, ApiResponse<SearchAddressBatchItemResponse>>> MapsSearchAddressBatchToDictionaryAsync(IEnumerable<string> queryStrings)
+        {
+            // This will hold the original query strings and the transformed query strings.
+            // https://learn.microsoft.com/en-us/rest/api/maps/search/post-search-address-batch?view=rest-maps-1.0&tabs=HTTP
+            // Azure Maps will transform the query strings to lowercase and remove any commas.
+            // For example, "One, Microsoft Way, Redmond, WA 98052" will be transformed to "one microsoft way redmond wa 98052".
+            // Therefore we need to transform the query strings to lowercase and remove any commas as well and remeber the original query strings.
+            // Using this Dictionary we can match the original query strings with the search results.
+            Dictionary<string, string> queries = queryStrings.Distinct().ToDictionary(q => q, q => q.Replace(",", string.Empty).ToLower());
+
+            // Query the Maps API for the coordinates of the provided query strings in batch.
+            ApiResponse<SearchAddressBatchOperation> searchResult = await MapsSearchAddressBatchAsync(queries.Keys);
+
+            // If an error occurred while searching for the coordinates, return an error response for each query string.
+            // As the whole operation failed, each query string will have the same error response.
+            // The error response contains the error message and status code.
+            // We have the error message and status code from the search result, so we can use them here.
+            if (!searchResult.IsSuccess)
+            {
+                return queries.ToDictionary(q => q.Key, q => ApiResponse<SearchAddressBatchItemResponse>.Error(
+                    searchResult.ErrorMessage,
+                    searchResult.StatusCode
+                ));
+            }
+
+            // Its safe to access the value here, as we checked for the error response above.
+            SearchAddressBatchOperation batchOperation = searchResult.Value;
+
+            // If no search results were found for the query strings, return an error response for each query string.
+            // We cannot use the error response from the search result, as it succeeded, but did not find any results.
+            // Again, each query string will have the same error response, as not a single search result was found.
+            // Here we do not have the error message and status code, so we use a default message and status code.
+            if (!batchOperation.HasValue || batchOperation.Value == null || batchOperation.Value.Results == null || !batchOperation.Value.Results.Any())
+            {
+                string message = $"No search results found for {queryStrings.Distinct().Count()} queries in batch.";
+                _logger.LogWarning(message);
+
+                return queries.ToDictionary(q => q.Key, q => ApiResponse<SearchAddressBatchItemResponse>.Error(
+                    message,
+                    StatusCodes.Status404NotFound
+                ));
+            }
+
+            // We have found search results for the query strings.
+            // We now can match the query strings with the search results.
+            // We return a dictionary where the key is the query string and the value is the search result.
+            var results = queries
+                .Select(kvp =>
+                {
+                    // Get the original and transformed query strings.
+                    string originalQuery = kvp.Key;
+                    string transformedQuery = kvp.Value;
+
+                    // Attempt to find a matching result using the transformed query.
+                    var match = batchOperation.Value.Results.FirstOrDefault(r => r.Query == transformedQuery);
+
+                    // Should never happen, but its good to have a safeguard here.
+                    if (match == null)
+                    {
+                        string message = $"No result found for query {originalQuery}";
+                        _logger.LogWarning(message);
+
+                        return (Query: originalQuery, ApiResponse: ApiResponse<SearchAddressBatchItemResponse>.Error(message, StatusCodes.Status404NotFound));
+                    }
+
+                    return (Query: originalQuery, ApiResponse: ApiResponse<SearchAddressBatchItemResponse>.Success(match));
+                })
+                .ToDictionary(x => x.Query, x => x.ApiResponse);
+            return results;
+        }
+
+        /// <summary>
+        /// Maps a collection of locations to a dictionary of search address batch item responses.
+        /// </summary>
+        /// <param name="locations">The collection of locations to map.</param>
+        /// <returns>A dictionary containing the mapped locations and their corresponding search address batch item responses.</returns>
+        public async Task<IDictionary<Location, ApiResponse<SearchAddressBatchItemResponse>>> MapsSearchAddressBatchToDictionaryAsync(IEnumerable<Location> locations)
+        {
+            Dictionary<Location, string> locationQueries = locations.Distinct().ToDictionary(l => l, l => l.MapsQueryString());
+            IDictionary<string, ApiResponse<SearchAddressBatchItemResponse>> queryResults = await MapsSearchAddressBatchToDictionaryAsync(locationQueries.Values);
+
+            // We can safely assume that every query has a corresponding API response,
+            // regardless of whether the response is an error or a success.
+            var results = locationQueries
+                .Join(
+                    queryResults,
+                    locationQuery => locationQuery.Value,
+                    result => result.Key,
+                    (locationQuery, result) => new { Location = locationQuery.Key, Response = result.Value }
+                )
+                .ToDictionary(x => x.Location, x => x.Response);
+            return results;
+        }
+
+        /// <summary>
+        /// Searches for coordinates in batch based on the provided query strings.
+        /// </summary>
+        /// <param name="queryStrings">The collection of query strings to search for.</param>
+        /// <returns>An asynchronous task that represents the operation. The task result contains the search results.</returns>
+        public async Task<IDictionary<string, ApiResponse<GeoCoordinate>>> MapsSearchCoordinateBatchAsync(IEnumerable<string> queryStrings)
+        {
+            IDictionary<string, ApiResponse<SearchAddressBatchItemResponse>> searchResults = await MapsSearchAddressBatchToDictionaryAsync(queryStrings);
+
+            var results = searchResults
+                .Select(kvp =>
+                {
+                    string query = kvp.Key;
+                    ApiResponse<SearchAddressBatchItemResponse> searchResult = kvp.Value;
+
+                    // We have an error response, return an error response for the query.
+                    // The message and status code are already set in the error response,
+                    // so we can use them here.
+                    if (!searchResult.IsSuccess)
+                    {
+                        return (Query: query, ApiResponse: ApiResponse<GeoCoordinate>.Error(searchResult.ErrorMessage, searchResult.StatusCode));
+                    }
+
+                    // Safe to access the value here, as we checked for the error response above.
+                    SearchAddressBatchItemResponse result = searchResult.Value;
+
+                    // Check if we have any results for the query.
+                    // If not we return an error response for the query.
+                    // As we do not have a error message and status code here, we use a default message and status code.
+                    var results = result.Results;
+                    if (results == null || !results.Any())
+                    {
+                        string message = $"No coordinate found for query {query}";
+                        _logger.LogWarning(message);
+                        return (Query: query, ApiResponse: ApiResponse<GeoCoordinate>.Error(message, StatusCodes.Status404NotFound));
+                    }
+
+                    var bestResult = results.OrderByDescending(r => r.Score).First();
+                    var coordinate = new GeoCoordinate(bestResult.Position.Latitude, bestResult.Position.Longitude);
+                    return (Query: query, ApiResponse: ApiResponse<GeoCoordinate>.Success(coordinate));
+                })
+                .ToDictionary(x => x.Query, x => x.ApiResponse);
+            return results;
+        }
+
+        /// <summary>
+        /// Searches for the coordinates of multiple locations in batch using the Maps API.
+        /// </summary>
+        /// <param name="locations">The collection of locations to search for.</param>
+        /// <returns>A dictionary containing the location and the corresponding API response with the coordinates.</returns>
+        public async Task<IDictionary<Location, ApiResponse<GeoCoordinate>>> MapsSearchCoordinateBatchAsync(IEnumerable<Location> locations)
+        {
+            Dictionary<Location, string> locationQueries = locations.Distinct().ToDictionary(l => l, l => l.MapsQueryString());
+            IDictionary<string, ApiResponse<GeoCoordinate>> queryResults = await MapsSearchCoordinateBatchAsync(locationQueries.Values);
+            return locationQueries
+                .Join(
+                    queryResults,
+                    locationQuery => locationQuery.Value,
+                    result => result.Key,
+                    (locationQuery, result) => new { Location = locationQuery.Key, Response = result.Value }
+                )
+                .ToDictionary(x => x.Location, x => x.Response);
         }
 
         /// <summary>
