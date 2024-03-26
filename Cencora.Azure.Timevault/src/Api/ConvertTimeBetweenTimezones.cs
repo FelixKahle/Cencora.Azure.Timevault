@@ -594,7 +594,6 @@ namespace Cencora.Azure.Timevault
 
                 try
                 {
-
                     // Parse the provided time string
                     TimeZoneInfo sourceTimeZone = TimeZoneInfo.FindSystemTimeZoneById(fromTimezone);
                     TimeZoneInfo targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(toTimezone);
