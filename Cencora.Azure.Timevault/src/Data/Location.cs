@@ -105,6 +105,16 @@ namespace Cencora.Azure.Timevault
         }
 
         /// <summary>
+        /// Generates a query string for batch processing in maps.
+        /// </summary>
+        /// <returns>The generated query string.</returns>
+        public string MapsBatchQueryString()
+        {
+            var parts = new[] { City, State, PostalCode, Country };
+            return string.Join(" ", parts.Where(p => !string.IsNullOrEmpty(p))).ToLower();
+        }
+
+        /// <summary>
         /// Determines whether two <see cref="Location"/> objects are equal.
         /// </summary>
         /// <param name="left">The first <see cref="Location"/> object to compare.</param>
