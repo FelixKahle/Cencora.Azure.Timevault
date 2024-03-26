@@ -599,7 +599,7 @@ namespace Cencora.Azure.Timevault
         public async Task<ApiResponse<string>> MapsGetIanaTimezoneCodeByCoordinateAsync(GeoCoordinate coordinate)
         {
             ApiResponse<TimezoneResult> timezoneResult = await MapsGetTimezoneByCoordinateAsync(coordinate);
-            if (!timezoneResult)
+            if (!timezoneResult.IsSuccess)
             {
                 return ApiResponse<string>.Error(timezoneResult.ErrorMessage, timezoneResult.StatusCode);
             }
@@ -682,7 +682,7 @@ namespace Cencora.Azure.Timevault
         public async Task<ApiResponse<GeoCoordinate>> MapsSearchCoordinateAsync(string query)
         {
             ApiResponse<SearchAddressResult> searchAddressResult = await MapsSearchAddressAsync(query);
-            if (!searchAddressResult)
+            if (!searchAddressResult.IsSuccess)
             {
                 string errorMessage = searchAddressResult.ErrorMessage ?? $"An error occurred while searching for coordinate with query {query}";
                 return ApiResponse<GeoCoordinate>.Error(errorMessage, searchAddressResult.StatusCode);
