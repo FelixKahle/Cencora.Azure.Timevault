@@ -145,11 +145,10 @@ namespace Cencora.Azure.Timevault
             // Searching is done asynchronously to improve the performance,
             // however we limit the number of concurrent requests to 20 to prevent overloading the Timevault database.
             // By default it should have a RU limit of 5000.
-            // Note that 20 was some sort of stomach feeling, as we do not have any performance data to back this up.
             var searchResults = await RunWithLimitedConcurrencyAsync(
                 distinctLocations,
                 FetchTimevaultAsync,
-                20
+                _settings.MaxConcurrentTaskCosmosDBRequests
             );
 
             // Create a list to store the locations that need to be searched.
@@ -192,18 +191,33 @@ namespace Cencora.Azure.Timevault
             var updatedDocumentsTask = RunWithLimitedConcurrencyAsync(
                 updateDocuments,
                 async keyValuePair => await UpdateDocumentAsync(keyValuePair.Location, keyValuePair.Document),
-                20
+                _settings.MaxConcurrentTaskCosmosDBRequests
             );
 
             // Only search for locations if we have any to search.
             if (locationsToSearch.Any())
             {
-                // If we have locations to search, we search for the coordinates using the Maps API.
-                // We search by utilizing the batch search functionality of the Maps API,
-                // which allows us to search for multiple locations in a single request.
-                // This will decrease the number of requests to the Maps API and improve the performance,
-                // as we just need to wait for one request to complete.
-                var coordinates = await MapsSearchCoordinateBatchAsync(locationsToSearch);
+                // We now search for the coordinates for the locations that did not have a Timevault document.
+                IDictionary<Location, ApiResponse<GeoCoordinate>> coordinates = new Dictionary<Location, ApiResponse<GeoCoordinate>>();
+
+                if (locationsToSearch.Count() > 1)
+                {
+                    // If we have multiple locations to search, we search for the coordinates using the Maps API in batch.
+                    // We search by utilizing the batch search functionality of the Maps API,
+                    // which allows us to search for multiple locations in a single request.
+                    // This will decrease the number of requests to the Maps API and improve the performance,
+                    // as we just need to wait for one request to complete.
+                    coordinates = await MapsSearchCoordinateBatchAsync(locationsToSearch);
+                }
+                else
+                {
+                    // If we only have one location to search, we can search for the coordinate using the Maps API,
+                    // but we do not need to use the batch search functionality.
+                    // For one location, the batch search functionality does not provide any performance improvement.
+                    var location = locationsToSearch.First();
+                    var coordinate = await MapsSearchCoordinateAsync(location);
+                    coordinates.Add(location, coordinate);
+                }
 
                 // First of all loop through the coordinates and check if we have any errors.
                 // Any error can be added to the final results and we do not need to continue with the timezone search for these locations.
@@ -233,7 +247,7 @@ namespace Cencora.Azure.Timevault
                         Location location = keyValuePair.Key;
                         return await FetchTimezoneCodeAsync(location, coordinate);
                     },
-                    10
+                    _settings.MaxConcurrentTimezoneRequests
                 );
 
                 // These are all documents that need to be uploaed to the database.
@@ -262,7 +276,7 @@ namespace Cencora.Azure.Timevault
                 await RunWithLimitedConcurrencyAsync(
                     documentToUpsert,
                     UpsertTimevaultAsync,
-                    20
+                    _settings.MaxConcurrentTaskCosmosDBRequests
                 );
             }
 

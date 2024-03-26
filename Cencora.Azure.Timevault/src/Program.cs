@@ -20,9 +20,9 @@ string timevaultDatabaseName = Environment.GetEnvironmentVariable("TIMEVAULT_DAT
 string timevaultContainerName = Environment.GetEnvironmentVariable("TIMEVAULT_CONTAINER_NAME") ?? throw new ArgumentNullException("TIMEVAULT_CONTAINER_NAME");
 string mapsClientId = Environment.GetEnvironmentVariable("MAPS_CLIENT_ID") ?? throw new ArgumentNullException("MAPS_CLIENT_ID");
 
-// Default to 30 days if the environment variable is not set
-string ianaCodeUpdateIntervalInMinutesString = Environment.GetEnvironmentVariable("IANA_CODE_UPDATE_INTERVAL_IN_MINUTES") ?? "43200";
-int ianaCodeUpdateIntervalInMinutes = int.Parse(ianaCodeUpdateIntervalInMinutesString);
+int ianaCodeUpdateIntervalInMinutes = EnvironmentVariableHelper.GetInt32("IANA_CODE_UPDATE_INTERVAL_IN_MINUTES", 43200); // 30 days
+int maxConcurrentCosmosDBRequests = EnvironmentVariableHelper.GetInt32("MAX_CONCURRENT_TASK_COSMOS_DB_REQUESTS", 20);
+int maxConcurrentTimezoneRequests = EnvironmentVariableHelper.GetInt32("MAX_CONCURRENT_TIMEZONE_REQUESTS", 10);
 
 // Create a new Managed Identity Credential
 // This will be used to authenticate with Azure services.
@@ -49,6 +49,8 @@ var host = new HostBuilder()
             TimevaultCosmosDBDatabaseName = timevaultDatabaseName,
             TimevaultCosmosDBContainerName = timevaultContainerName,
             IanaCodeUpdateIntervalInMinutes = ianaCodeUpdateIntervalInMinutes,
+            MaxConcurrentTaskCosmosDBRequests = maxConcurrentCosmosDBRequests,
+            MaxConcurrentTimezoneRequests = maxConcurrentTimezoneRequests
         });
 
         // Configure the CosmosClient and add it to the services

@@ -218,6 +218,14 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'IANA_CODE_UPDATE_INTERVAL_IN_MINUTES'
           value: '43200'
         }
+        {
+          name: 'MAX_CONCURRENT_TASK_COSMOS_DB_REQUESTS'
+          value: '20'
+        }
+        {
+          name: 'MAX_CONCURRENT_TIMEZONE_REQUESTS'
+          value: '10'
+        }
       ]
     }
     clientAffinityEnabled: false

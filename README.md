@@ -28,6 +28,8 @@ Before making requests, verify that the following environment variables are corr
 - `TIMEVAULT_CONTAINER_NAME`: The name of your container within the Cosmos DB database.
 - `MAPS_CLIENT_ID`: Your Azure Maps client ID.
 - `IANA_CODE_UPDATE_INTERVAL_IN_MINUTES`: Interval for updating IANA codes, with a default value of 43200 minutes (30 days) if not set.
+- `MAX_CONCURRENT_TASK_COSMOS_DB_REQUESTS`: This setting limits the number of concurrent requests made to the Cosmos DB service to prevent overloading and potential throttling by the service. It's applied at the task level, meaning each task (e.g., a query execution or document upsert) can make up to this number of concurrent requests, but the limit isn't shared across multiple tasks. Example: If the limit is set to 20, two running tasks can each make up to 20 concurrent requests to Cosmos DB, potentially resulting in a total of 40 concurrent requests from the application. The default value is 20.
+- `MAX_CONCURRENT_TIMEZONE_REQUESTS`: Max amount of concurrent requests to the Timezone service, with a default value of 10 if not set.
 
 **Note:** If you are using the main.bicep file to deploy the Azure infrastructure, all these variables will be correctly set up for you.
 
