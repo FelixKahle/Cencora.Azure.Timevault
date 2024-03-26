@@ -209,7 +209,7 @@ namespace Cencora.Azure.Timevault
                     // as we just need to wait for one request to complete.
                     coordinates = await MapsSearchCoordinateBatchAsync(locationsToSearch);
                 }
-                else
+                else if (locationsToSearch.Count() == 1)
                 {
                     // If we only have one location to search, we can search for the coordinate using the Maps API,
                     // but we do not need to use the batch search functionality.
@@ -217,6 +217,11 @@ namespace Cencora.Azure.Timevault
                     var location = locationsToSearch.First();
                     var coordinate = await MapsSearchCoordinateAsync(location);
                     coordinates.Add(location, coordinate);
+                }
+                else
+                {
+                    // This should never happen, as we checked for the count above.
+                    throw new InvalidOperationException("No locations to search for.");
                 }
 
                 // First of all loop through the coordinates and check if we have any errors.
@@ -281,6 +286,9 @@ namespace Cencora.Azure.Timevault
             }
 
             // Wait for the updated documents to complete.
+            // It should have completed by now, as we started the task before we started searching for the locations,
+            // and searching for the locations should take longer than updating the documents.
+            // If not it is completly fine, we just wait for the task to complete.
             var updatedDocuments = await updatedDocumentsTask;
 
             // Finally, we update the final results with the updated documents.
