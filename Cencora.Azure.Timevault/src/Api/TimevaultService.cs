@@ -776,7 +776,7 @@ namespace Cencora.Azure.Timevault
 
 
             // Query the Maps API for the coordinates of the provided query strings in batch.
-            ApiResponse<SearchAddressBatchOperation> searchResult = await MapsSearchAddressBatchAsync(queries.Values);
+            ApiResponse<SearchAddressBatchOperation> searchResult = await MapsSearchAddressBatchAsync(queries.Keys);
 
             // If an error occurred while searching for the coordinates, return an error response for each query string.
             // As the whole operation failed, each query string will have the same error response.
