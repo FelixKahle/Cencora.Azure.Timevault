@@ -1,0 +1,35 @@
+[
+  {
+    "fromCity": "New York",
+    "fromState": "NY",
+    "fromPostalCode": "10001",
+    "fromCountry": "USA",
+    "toCity": "Berlin",
+    "toState": "",
+    "toPostalCode": "10115",
+    "toCountry": "Germany",
+    "fromTime": "2024-03-25T14:00:00-04:00"
+  },
+  {
+    "fromCity": "San Francisco",
+    "fromState": "CA",
+    "fromPostalCode": "94103",
+    "fromCountry": "USA",
+    "toCity": "Tokyo",
+    "toState": "",
+    "toPostalCode": "",
+    "toCountry": "Japan",
+    "fromTime": "2024-03-25T11:00:00-07:00"
+  },
+  {
+    "fromCity": "London",
+    "fromState": "",
+    "fromPostalCode": "SW1A 1AA",
+    "fromCountry": "UK",
+    "toCity": "Sydney",
+    "toState": "NSW",
+    "toPostalCode": "2000",
+    "toCountry": "Australia",
+    "fromTime": "2024-03-26T09:30:00+01:00"
+  }
+]
