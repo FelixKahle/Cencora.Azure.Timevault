@@ -97,21 +97,17 @@ namespace Cencora.Azure.Timevault
         /// <summary>
         /// Returns a string that represents the location in a format suitable for a maps query string.
         /// </summary>
+        /// <remarks>
+        /// The format is "City, State, PostalCode, Country".
+        /// The postal code is normalized to not contain any dash.
+        /// </remarks>
         /// <returns>A string that represents the location in a format suitable for a maps query string.</returns>
         public string MapsQueryString()
         {
-            var parts = new[] { City, State, PostalCode, Country };
+            // For whatever reason, the postal code in the query string should not contain the dash.
+            // Azure Maps does not seem to find the location if the dash is included.
+            var parts = new[] { City, State, PostalCode.Replace("-", string.Empty), Country };
             return string.Join(", ", parts.Where(p => !string.IsNullOrEmpty(p)));
-        }
-
-        /// <summary>
-        /// Generates a query string for batch processing in maps.
-        /// </summary>
-        /// <returns>The generated query string.</returns>
-        public string MapsBatchQueryString()
-        {
-            var parts = new[] { City, State, PostalCode, Country };
-            return string.Join(" ", parts.Where(p => !string.IsNullOrEmpty(p))).ToLower();
         }
 
         /// <summary>

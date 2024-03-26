@@ -767,7 +767,13 @@ namespace Cencora.Azure.Timevault
             // For example, "One, Microsoft Way, Redmond, WA 98052" will be transformed to "one microsoft way redmond wa 98052".
             // Therefore we need to transform the query strings to lowercase and remove any commas as well and remeber the original query strings.
             // Using this Dictionary we can match the original query strings with the search results.
-            Dictionary<string, string> queries = queryStrings.Distinct().ToDictionary(q => q, q => q.Replace(",", string.Empty).ToLower());
+            Dictionary<string, string> queries = queryStrings
+                .Distinct()
+                .ToDictionary(
+                    q => q, 
+                    q => q.Replace(",", string.Empty)
+                    .ToLower());
+
 
             // Query the Maps API for the coordinates of the provided query strings in batch.
             ApiResponse<SearchAddressBatchOperation> searchResult = await MapsSearchAddressBatchAsync(queries.Keys);
