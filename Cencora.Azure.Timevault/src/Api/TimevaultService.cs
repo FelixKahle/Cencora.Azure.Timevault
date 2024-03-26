@@ -198,12 +198,27 @@ namespace Cencora.Azure.Timevault
             // Only search for locations if we have any to search.
             if (locationsToSearch.Any())
             {
-                // If we have locations to search, we search for the coordinates using the Maps API.
-                // We search by utilizing the batch search functionality of the Maps API,
-                // which allows us to search for multiple locations in a single request.
-                // This will decrease the number of requests to the Maps API and improve the performance,
-                // as we just need to wait for one request to complete.
-                var coordinates = await MapsSearchCoordinateBatchAsync(locationsToSearch);
+                // We now search for the coordinates for the locations that did not have a Timevault document.
+                IDictionary<Location, ApiResponse<GeoCoordinate>> coordinates = new Dictionary<Location, ApiResponse<GeoCoordinate>>();
+
+                if (locationsToSearch.Count() > 1)
+                {
+                    // If we have multiple locations to search, we search for the coordinates using the Maps API in batch.
+                    // We search by utilizing the batch search functionality of the Maps API,
+                    // which allows us to search for multiple locations in a single request.
+                    // This will decrease the number of requests to the Maps API and improve the performance,
+                    // as we just need to wait for one request to complete.
+                    coordinates = await MapsSearchCoordinateBatchAsync(locationsToSearch);
+                }
+                else
+                {
+                    // If we only have one location to search, we can search for the coordinate using the Maps API,
+                    // but we do not need to use the batch search functionality.
+                    // For one location, the batch search functionality does not provide any performance improvement.
+                    var location = locationsToSearch.First();
+                    var coordinate = await MapsSearchCoordinateAsync(location);
+                    coordinates.Add(location, coordinate);
+                }
 
                 // First of all loop through the coordinates and check if we have any errors.
                 // Any error can be added to the final results and we do not need to continue with the timezone search for these locations.
