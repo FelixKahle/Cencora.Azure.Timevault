@@ -145,11 +145,10 @@ namespace Cencora.Azure.Timevault
             // Searching is done asynchronously to improve the performance,
             // however we limit the number of concurrent requests to 20 to prevent overloading the Timevault database.
             // By default it should have a RU limit of 5000.
-            // Note that 20 was some sort of stomach feeling, as we do not have any performance data to back this up.
             var searchResults = await RunWithLimitedConcurrencyAsync(
                 distinctLocations,
                 FetchTimevaultAsync,
-                20
+                _settings.MaxConcurrentTaskCosmosDBRequests
             );
 
             // Create a list to store the locations that need to be searched.
@@ -192,7 +191,7 @@ namespace Cencora.Azure.Timevault
             var updatedDocumentsTask = RunWithLimitedConcurrencyAsync(
                 updateDocuments,
                 async keyValuePair => await UpdateDocumentAsync(keyValuePair.Location, keyValuePair.Document),
-                20
+                _settings.MaxConcurrentTaskCosmosDBRequests
             );
 
             // Only search for locations if we have any to search.
@@ -248,7 +247,7 @@ namespace Cencora.Azure.Timevault
                         Location location = keyValuePair.Key;
                         return await FetchTimezoneCodeAsync(location, coordinate);
                     },
-                    10
+                    _settings.MaxConcurrentTimezoneRequests
                 );
 
                 // These are all documents that need to be uploaed to the database.
@@ -277,7 +276,7 @@ namespace Cencora.Azure.Timevault
                 await RunWithLimitedConcurrencyAsync(
                     documentToUpsert,
                     UpsertTimevaultAsync,
-                    20
+                    _settings.MaxConcurrentTaskCosmosDBRequests
                 );
             }
 
