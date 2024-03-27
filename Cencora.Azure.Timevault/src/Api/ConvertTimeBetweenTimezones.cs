@@ -474,8 +474,12 @@ namespace Cencora.Azure.Timevault
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = "time/convertBatch")] HttpRequest req)
         {
             // Deserialize the request body into a list of location items.
+            // Filter out invalid location items.
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var data = JsonSerializer.Deserialize<List<ConvertTimeBetweenTimezonesBatchRequest>>(requestBody, _jsonSerializerOptions);
+            var data = JsonSerializer.Deserialize<List<ConvertTimeBetweenTimezonesBatchRequest>>(requestBody, _jsonSerializerOptions)?
+                            .Where(x => x.IsFromLocationValid() && x.IsToLocationValid())
+                            .ToList();
+            
 
             // Safe guard against null or empty data.
             if (data == null || data.Count == 0)
