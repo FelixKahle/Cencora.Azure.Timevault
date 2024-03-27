@@ -270,6 +270,18 @@ namespace Cencora.Azure.Timevault
                 Country?.ToLower() ?? string.Empty, 
                 PostalCode?.ToLower() ?? string.Empty);
         }
+
+        /// <summary>
+        /// Checks if the location information is valid.
+        /// </summary>
+        /// <returns><c>true</c> if the location information is valid; otherwise, <c>false</c>.</returns>
+        public bool IsValid()
+        {
+            return !(string.IsNullOrEmpty(City)
+                && string.IsNullOrEmpty(State)
+                && string.IsNullOrEmpty(PostalCode)
+                && string.IsNullOrEmpty(Country));
+        }
     }
 
     /// <summary>
@@ -316,11 +328,15 @@ namespace Cencora.Azure.Timevault
         public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "post", Route = "timezone/byLocationBatch")] HttpRequest req)
         {
             // Deserialize the request body into a list of location items.
+            // Filter out invalid items and convert them to Location objects.
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var data = JsonSerializer.Deserialize<List<GetIanaTimezoneByLocationBatchRequestItem>>(requestBody, _jsonSerializerOptions);
+            var locations = JsonSerializer.Deserialize<List<GetIanaTimezoneByLocationBatchRequestItem>>(requestBody, _jsonSerializerOptions)?
+                            .Where(x => x.IsValid())
+                            .Select(x => x.ToLocation())
+                            .ToList();
 
             // Safe guard against null or empty data.
-            if (data == null || data.Count == 0)
+            if (locations == null || locations.Count() == 0)
             {
                 _logger.LogWarning("The request body must contain at least one location item.");
 
@@ -330,30 +346,6 @@ namespace Cencora.Azure.Timevault
                     StatusCodes.Status400BadRequest
                 );
                 return new BadRequestObjectResult(errorResponse);
-            }
-
-            // Filter out invalid locations and convert them to Location objects.
-            List<Location> locations = data
-                .Where(item =>
-                {
-                    return !(string.IsNullOrEmpty(item.City)
-                        && string.IsNullOrEmpty(item.State)
-                        && string.IsNullOrEmpty(item.PostalCode)
-                        && string.IsNullOrEmpty(item.Country));
-                })
-                .Select(item => item.ToLocation())
-                .ToList();
-
-            // Ensure that at least one valid location is provided.
-            if (!locations.Any())
-            {
-                _logger.LogWarning("No valid locations provided in the request.");
-
-                return new BadRequestObjectResult(GetIanaTimezoneByLocationResponse.Error(
-                    "No valid locations provided in the request.",
-                    null,
-                    StatusCodes.Status400BadRequest
-                ));
             }
 
             try

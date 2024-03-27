@@ -15,7 +15,7 @@
         "city": "Berlin",
         "state": "",
         "postalCode": "10117",
-        "country": "Germany"
+        "country": "DE"
     },
     {
         "city": "Chicago",
@@ -33,30 +33,30 @@
         "city": "Munich",
         "state": "",
         "postalCode": "80331",
-        "country": "Germany"
+        "country": "DE"
     },
     {
         "city": "Hamburg",
         "state": "",
         "postalCode": "20095",
-        "country": "Germany"
+        "country": "DE"
     },
     {
         "city": "Tokyo",
         "state": "",
         "postalCode": "100-0001",
-        "country": "Japan"
+        "country": "JPN"
     },
     {
         "city": "Paris",
         "state": "",
         "postalCode": "75001",
-        "country": "France"
+        "country": "FRA"
     },
     {
         "city": "London",
         "state": "",
         "postalCode": "SW1A 1AA",
-        "country": "United Kingdom"
+        "country": "UK"
     }
 ]

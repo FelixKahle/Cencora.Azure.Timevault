@@ -244,7 +244,7 @@ namespace Cencora.Azure.Timevault
                 // however we limit the number of concurrent requests to 10 to prevent overloading the Maps API.
                 var fetchedTimezones = await RunWithLimitedConcurrencyAsync(
                     successfulCoordinates,
-                    async keyValuePair => 
+                    async keyValuePair =>
                     {
                         // It is completly fine here to access the Value property directly, as we know that the dictionary
                         // only contains successful results.
@@ -389,25 +389,24 @@ namespace Cencora.Azure.Timevault
             var semaphore = new SemaphoreSlim(maxConcurrency);
             var tasks = new List<Task<TResult>>();
 
-            // Launch tasks with limited concurrency
             foreach (var item in items)
             {
+                // Wait to enter the semaphore asynchronously. This limits the concurrency.
                 await semaphore.WaitAsync();
 
-                tasks.Add(Task.Run(async () =>
-                {
-                    try
-                    {
-                        return await operation(item);
-                    }
-                    finally
+                var task = operation(item).ContinueWith(
+                    async t =>
                     {
                         semaphore.Release();
-                    }
-                }));
+                        return await t;
+                    },
+                    TaskScheduler.Default
+                ).Unwrap();
+
+                tasks.Add(task);
             }
 
-            // Wait for all tasks to complete and return the results
+            // Await all the tasks to complete and gather results
             return await Task.WhenAll(tasks);
         }
 
@@ -792,7 +791,7 @@ namespace Cencora.Azure.Timevault
             Dictionary<string, string> queries = queryStrings
                 .Distinct()
                 .ToDictionary(
-                    q => q, 
+                    q => q,
                     q => q.Replace(",", string.Empty)
                     .ToLower());
 
