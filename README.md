@@ -4,7 +4,7 @@ This repository contains the source code for the Timevault service, developed fo
 
 ## Overview
 
-The Timevault service leverages Azure Maps services to retrieve geographical information based on given locations. It then uses this information to determine the appropriate IANA timezone. The resolved timezone data is stored in a Cosmos DB database for future reference. This approach significantly reduces the number of calls made to Azure Maps services, optimizing operational costs by relying more on the cost-effective Cosmos DB operations for recurring timezone queries.
+The Timevault service leverages Azure Maps services to retrieve geographical information based on given locations. It then uses this information to determine the appropriate IANA timezone. The resolved timezone data is stored in a Cosmos DB database for future reference. This approach significantly reduces the number of calls made to Azure Maps services and thus reducing latency.
 
 ## Services
 
