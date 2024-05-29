@@ -1,0 +1,62 @@
+[
+    {
+        "city": "San Francisco",
+        "state": "CA",
+        "postalCode": "94103",
+        "country": "US"
+    },
+    {
+        "city": "New York",
+        "state": "NY",
+        "postalCode": "10001",
+        "country": "US"
+    },
+    {
+        "city": "Berlin",
+        "state": "",
+        "postalCode": "10117",
+        "country": "DE"
+    },
+    {
+        "city": "Chicago",
+        "state": "IL",
+        "postalCode": "60601",
+        "country": "US"
+    },
+    {
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90001",
+        "country": "US"
+    },
+    {
+        "city": "Munich",
+        "state": "",
+        "postalCode": "80331",
+        "country": "DE"
+    },
+    {
+        "city": "Hamburg",
+        "state": "",
+        "postalCode": "20095",
+        "country": "DE"
+    },
+    {
+        "city": "Tokyo",
+        "state": "",
+        "postalCode": "100-0001",
+        "country": "JPN"
+    },
+    {
+        "city": "Paris",
+        "state": "",
+        "postalCode": "75001",
+        "country": "FRA"
+    },
+    {
+        "city": "London",
+        "state": "",
+        "postalCode": "SW1A 1AA",
+        "country": "UK"
+    }
+]
